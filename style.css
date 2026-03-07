@@ -1,0 +1,35 @@
+body {
+    background-color: #f4f1de; /* 仿宣纸底色 */
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: "PingFang SC", "Microsoft YaHei", serif;
+}
+
+.canvas-container {
+    position: relative;
+    width: 800px;
+    height: 500px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border: 1px solid #dcdcdc;
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    cursor: crosshair;
+}
+
+/* 渲染层添加模糊滤镜，模拟墨水晕染 */
+#renderCanvas {
+    z-index: 1;
+    filter: contrast(150%) brightness(90%) blur(0.5px);
+}
+
+#inputCanvas {
+    z-index: 2;
+    opacity: 0.3; /* 用户线条半透明，仅作引导 */
+}
