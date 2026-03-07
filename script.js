@@ -5,6 +5,7 @@
 // 这是一个目前依然活跃且允许跨域加载的风景模型地址
 const MODEL_URL = 'https://raw.githubusercontent.com/yining1023/pix2pix_tensorflowjs/master/models/scenery/model.json';
 
+
 let model;
 const iCanvas = document.getElementById('inputCanvas');
 const oCanvas = document.getElementById('outputCanvas');
