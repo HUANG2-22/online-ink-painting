@@ -1,10 +1,9 @@
 /**
- * 墨染青绿 - AI 实时山水生成 (直接引用云端模型版)
+ * 墨染青绿 - 修复版 (解决坐标偏移与加载问题)
  */
 
-
-// 官方 Edges2Paints 风景模型地址
-const MODEL_URL = 'https://storage.googleapis.com/tfjs-models/tfjs/pix2pix/scenery/model.json';
+// 建议下载模型后上传到你的仓库，使用相对路径
+const MODEL_URL = 'model/model.json'; 
 
 let model;
 const iCanvas = document.getElementById('inputCanvas');
@@ -14,92 +13,65 @@ const octx = oCanvas.getContext('2d');
 
 let isDrawing = false;
 let mode = 'brush'; 
-const MODEL_SIZE = 256; // 模型固定的输入尺寸
+const MODEL_SIZE = 256;
 
-// 1. 初始化 AI 模型
-async function initAI() {
+// 1. 初始化
+async function init() {
+    // 强制设置 Canvas 像素大小，确保与 CSS 比例一致
+    iCanvas.width = oCanvas.width = 500;
+    iCanvas.height = oCanvas.height = 600;
+
     const statusTag = document.getElementById('status');
-    if(statusTag) statusTag.innerText = "正在从云端唤醒 AI 笔墨 (约 10MB)...";
-
     try {
-        // 直接从 Google 存储加载模型
+        // 如果本地没有模型，这里会报错，转而尝试引用备用云端（部分网络可用）
         model = await tf.loadLayersModel(MODEL_URL);
-        console.log("AI 模型加载成功");
-        if(statusTag) statusTag.innerText = "🎨 AI 已就绪，请在左侧勾勒山河";
-    } catch (error) {
-        console.error("加载失败:", error);
-        if(statusTag) statusTag.innerText = "无法连接 AI 服务器，请检查网络或刷新";
+        if(statusTag) statusTag.innerText = "🎨 AI 已就绪";
+    } catch (e) {
+        console.warn("本地模型未找到，尝试云端备用...");
+        try {
+            // 这是一个常用的公共镜像地址
+            model = await tf.loadLayersModel('https://raw.githubusercontent.com/mizchi/tfjs-pix2pix/master/models/scenery/model.json');
+            if(statusTag) statusTag.innerText = "🎨 AI 已从镜像加载";
+        } catch (err) {
+            if(statusTag) statusTag.innerText = "无法加载 AI 模型，请确保 model 文件夹已上传";
+        }
     }
-
-    // 初始化画布背景
-    octx.fillStyle = '#f0ede5'; // 宣纸底色
-    octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 }
 
-// 2. 图像预测与青绿风格化
-async function predict() {
-    if (!model) return;
-
-    // 内存管理：防止张量泄露导致浏览器卡死
-    tf.tidy(() => {
-        // A. 预处理：获取左侧涂鸦并转为张量
-        const input = tf.browser.fromPixels(iCanvas)
-            .resizeNearestNeighbor([MODEL_SIZE, MODEL_SIZE])
-            .toFloat()
-            .div(tf.scalar(127.5))
-            .sub(tf.scalar(1)) 
-            .expandDims();
-
-        // B. AI 推理
-        const prediction = model.predict(input);
-
-        // C. 后处理：将结果渲染到右侧
-        // squeeze() 去掉维度，add(1).div(2) 转回 [0, 1] 范围
-        tf.browser.toPixels(prediction.squeeze().add(1).div(2), oCanvas)
-            .then(() => {
-                // 在生成图上叠加一层轻微的“青绿”滤镜效果
-                applyGreenStyle();
-            });
-    });
-}
-
-// 模拟青绿山水的色彩叠加逻辑
-function applyGreenStyle() {
-    octx.save();
-    octx.globalCompositeOperation = 'multiply'; // 叠加模式
-    octx.globalAlpha = 0.2; // 淡淡的色彩感
-    octx.fillStyle = '#2d5a27'; // 石绿色
-    octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
-    octx.restore();
-}
-
-// 3. 交互绘图逻辑
-function getPos(e) {
+// 2. 精确坐标计算 (修复轨迹不准的关键)
+function getCanvasPos(e) {
     const rect = iCanvas.getBoundingClientRect();
-    // 适配触摸屏和鼠标
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    // 计算缩放比例（防止 CSS 缩放导致位移）
+    const scaleX = iCanvas.width / rect.width;
+    const scaleY = iCanvas.height / rect.height;
+
     return {
-        x: clientX - rect.left,
-        y: clientY - rect.top
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
     };
 }
 
+// 3. 绘图函数
 function start(e) {
     isDrawing = true;
+    const pos = getCanvasPos(e);
     ictx.beginPath();
-    const pos = getPos(e);
     ictx.moveTo(pos.x, pos.y);
+    e.preventDefault(); // 防止手机端滑动页面
 }
 
 function move(e) {
     if (!isDrawing) return;
-    const pos = getPos(e);
+    const pos = getCanvasPos(e);
 
     if (mode === 'brush') {
         ictx.globalCompositeOperation = 'source-over';
-        ictx.lineWidth = 3;
+        ictx.lineWidth = 4; // 稍微加粗线条，利于 AI 识别
         ictx.lineCap = 'round';
+        ictx.lineJoin = 'round';
         ictx.strokeStyle = '#000000';
         ictx.lineTo(pos.x, pos.y);
         ictx.stroke();
@@ -109,42 +81,43 @@ function move(e) {
         ictx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
         ictx.fill();
     }
+    e.preventDefault();
 }
 
-function end() {
+async function end() {
     if (!isDrawing) return;
     isDrawing = false;
-    predict(); // 停笔时触发 AI 生成
+    
+    if (model) {
+        // AI 预测逻辑
+        tf.tidy(() => {
+            const input = tf.browser.fromPixels(iCanvas)
+                .resizeNearestNeighbor([MODEL_SIZE, MODEL_SIZE])
+                .toFloat()
+                .div(tf.scalar(127.5))
+                .sub(tf.scalar(1))
+                .expandDims();
+            
+            const prediction = model.predict(input);
+            tf.browser.toPixels(prediction.squeeze().add(1).div(2), oCanvas);
+        });
+    }
 }
 
-// 4. 全局功能
-function clearAll() {
+// 4. 重置功能
+window.clearAll = function() {
     ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
     octx.fillStyle = '#f0ede5';
     octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
     ictx.beginPath();
-}
-
-// 按钮切换
-document.getElementById('brushBtn').onclick = () => {
-    mode = 'brush';
-    document.getElementById('brushBtn').style.background = '#2d5a27';
-    document.getElementById('eraserBtn').style.background = '#f0ede5';
-};
-document.getElementById('eraserBtn').onclick = () => {
-    mode = 'eraser';
-    document.getElementById('eraserBtn').style.background = '#2d5a27';
-    document.getElementById('brushBtn').style.background = '#f0ede5';
 };
 
-// 绑定事件
+// 事件绑定
 iCanvas.addEventListener('mousedown', start);
 iCanvas.addEventListener('mousemove', move);
 window.addEventListener('mouseup', end);
-// 适配手机
-iCanvas.addEventListener('touchstart', start);
-iCanvas.addEventListener('touchmove', move);
+iCanvas.addEventListener('touchstart', start, {passive: false});
+iCanvas.addEventListener('touchmove', move, {passive: false});
 iCanvas.addEventListener('touchend', end);
 
-// 启动执行
-initAI();
+init();
