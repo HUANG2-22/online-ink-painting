@@ -1,35 +1,47 @@
-body {
-    background-color: #f4f1de; /* 仿宣纸底色 */
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    font-family: "PingFang SC", "Microsoft YaHei", serif;
+:root {
+    --paper-color: #f0ede5;
+    --border-color: #8c7e6d;
 }
 
-.canvas-container {
-    position: relative;
-    width: 800px;
-    height: 500px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    border: 1px solid #dcdcdc;
+body {
+    background-color: #2c3e50;
+    margin: 0;
+    font-family: serif;
+    color: var(--paper-color);
+}
+
+.toolbar {
+    text-align: center;
+    padding: 20px;
+}
+
+button {
+    background: var(--paper-color);
+    border: 1px solid var(--border-color);
+    padding: 8px 20px;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+button.active {
+    background: #2d5a27; /* 石绿色 */
+    color: white;
+}
+
+.main-container {
+    display: flex;
+    justify-content: space-around;
+    padding: 0 20px;
+}
+
+.panel {
+    text-align: center;
 }
 
 canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    cursor: crosshair;
-}
-
-/* 渲染层添加模糊滤镜，模拟墨水晕染 */
-#renderCanvas {
-    z-index: 1;
-    filter: contrast(150%) brightness(90%) blur(0.5px);
-}
-
-#inputCanvas {
-    z-index: 2;
-    opacity: 0.3; /* 用户线条半透明，仅作引导 */
+    background-color: var(--paper-color);
+    border: 8px solid #5d4a37;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 500px;
+    height: 600px;
 }
