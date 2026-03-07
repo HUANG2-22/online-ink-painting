@@ -5,63 +5,59 @@ const octx = oCanvas.getContext('2d');
 
 let drawing = false;
 let mode = 'brush';
+let lastX = 0, lastY = 0;
 
-// 初始化画布
-[iCanvas, oCanvas].forEach(c => {
-    c.width = 600;
-    c.height = 600;
-});
+// 初始化尺寸
+function resize() {
+    [iCanvas, oCanvas].forEach(c => {
+        c.width = 600;
+        c.height = 600;
+    });
+    clearAll(); // 初始背景
+}
 
-// 青绿山水核心色调
 const PALETTE = {
-    outline: '#2c3e50', // 浓墨勾勒
+    outline: '#2c3e50', // 墨色
     green: '#2d5a27',   // 石绿
     blue: '#1a3a5a',    // 石青
-    ochre: '#8c7e6d',   // 赭石
-    paper: '#f0ede5'    // 宣纸底色
+    paper: '#f0ede5'    // 宣纸色
 };
 
-// 模拟 LingDong 的山体生成算法
-function drawMountain(x, y) {
-    const height = Math.random() * 100 + 50;
-    const width = Math.random() * 80 + 40;
-    
+// 核心：青绿晕染笔触
+function inkStroke(x, y) {
     octx.save();
     
-    // 1. 绘制山体阴影/基色 (赭石渐变到石绿)
-    let grad = octx.createLinearGradient(x, y - height, x, y);
-    grad.addColorStop(0, PALETTE.blue);
-    grad.addColorStop(0.5, PALETTE.green);
-    grad.addColorStop(1, PALETTE.ochre);
+    // 1. 根据高度动态选色（高处青，低处绿）
+    const color = y < 300 ? PALETTE.blue : PALETTE.green;
     
-    octx.fillStyle = grad;
-    octx.globalAlpha = 0.7;
+    // 2. 绘制晕染效果 (扩散的半透明块)
+    const gradient = octx.createRadialGradient(x, y, 0, x, y, 20);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, 'transparent');
     
-    // 生成不规则的山脊形状 (抖动算法)
-    octx.beginPath();
-    octx.moveTo(x - width, y);
+    octx.globalAlpha = 0.15; // 极低透明度，通过堆叠产生深浅
+    octx.fillStyle = gradient;
     
-    for (let i = -width; i <= width; i += 5) {
-        // 关键：引入随机偏移模拟岩石崎岖感
-        const jitter = Math.sin(i * 0.1) * 10 + (Math.random() - 0.5) * 15;
-        const currY = y - (Math.cos((i / width) * (Math.PI / 2)) * height) + jitter;
-        octx.lineTo(x + i, currY);
+    // 模拟毛笔散锋：在坐标周围随机散落几个墨点
+    for(let i=0; i<3; i++) {
+        const offset = (Math.random() - 0.5) * 15;
+        octx.beginPath();
+        octx.arc(x + offset, y + offset, Math.random() * 10 + 5, 0, Math.PI * 2);
+        octx.fill();
     }
     
-    octx.lineTo(x + width, y);
-    octx.closePath();
-    octx.fill();
-
-    // 2. 勾勒边缘 (模拟“皴法”)
+    // 3. 实时勾勒山脊碎线 (皴法)
+    octx.globalAlpha = 0.3;
     octx.strokeStyle = PALETTE.outline;
     octx.lineWidth = 0.5;
-    octx.globalAlpha = 0.3;
+    octx.beginPath();
+    octx.moveTo(lastX, lastY);
+    octx.lineTo(x, y);
     octx.stroke();
-
+    
     octx.restore();
 }
 
-// 交互逻辑
 function handleMove(e) {
     if (!drawing) return;
     const rect = iCanvas.getBoundingClientRect();
@@ -69,26 +65,65 @@ function handleMove(e) {
     const y = e.clientY - rect.top;
 
     if (mode === 'brush') {
-        // 左侧绘制引导线
+        // 左侧：绘制引导线条
+        ictx.strokeStyle = '#666';
+        ictx.lineWidth = 1;
+        ictx.beginPath();
+        ictx.moveTo(lastX, lastY);
         ictx.lineTo(x, y);
         ictx.stroke();
 
-        // 右侧生成山体：我们限制生成频率，防止画面太乱
-        if (Math.random() > 0.85) { 
-            drawMountain(x, y);
-        }
+        // 右侧：随笔触生成的青绿效果
+        inkStroke(x, y);
     } else {
-        // 橡皮擦：同时清理两边
-        ictx.clearRect(x-20, y-20, 40, 40);
+        // 橡皮擦：精准擦除
+        // ictx 使用 'destination-out' 实现透明擦除
+        ictx.globalCompositeOperation = 'destination-out';
+        ictx.beginPath();
+        ictx.arc(x, y, 20, 0, Math.PI * 2);
+        ictx.fill();
+        ictx.globalCompositeOperation = 'source-over';
+
+        // octx 覆盖宣纸底色来模拟擦除
         octx.fillStyle = PALETTE.paper;
         octx.beginPath();
-        octx.arc(x, y, 30, 0, Math.PI*2);
+        octx.arc(x, y, 25, 0, Math.PI * 2);
         octx.fill();
     }
+
+    [lastX, lastY] = [x, y];
 }
 
-iCanvas.addEventListener('mousedown', () => { drawing = true; ictx.beginPath(); });
+// 事件监听
+iCanvas.addEventListener('mousedown', (e) => {
+    drawing = true;
+    const rect = iCanvas.getBoundingClientRect();
+    lastX = e.clientX - rect.left;
+    lastY = e.clientY - rect.top;
+});
 iCanvas.addEventListener('mouseup', () => drawing = false);
 iCanvas.addEventListener('mousemove', handleMove);
 
-// 按钮逻辑... (保留之前的按钮绑定)
+// 工具切换 (修复按钮逻辑)
+document.getElementById('brushBtn').addEventListener('click', () => {
+    mode = 'brush';
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    document.getElementById('brushBtn').classList.add('active');
+});
+
+document.getElementById('eraserBtn').addEventListener('click', () => {
+    mode = 'eraser';
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    document.getElementById('eraserBtn').classList.add('active');
+});
+
+// 重置画卷 (修复逻辑)
+window.clearAll = function() {
+    ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
+    octx.fillStyle = PALETTE.paper;
+    octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
+    // 重新开启路径
+    ictx.beginPath();
+};
+
+resize();
