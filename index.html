@@ -2,19 +2,25 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>墨染山河 - 实时山水交互</title>
+    <title>青绿山水生机 - 实时生成</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app">
-        <h1>墨染山河</h1>
-        <div class="canvas-container">
-            <canvas id="renderCanvas"></canvas>
+    <div class="toolbar">
+        <button id="brushBtn" class="active">毛笔</button>
+        <button id="eraserBtn">橡皮</button>
+        <button onclick="clearAll()">重置画卷</button>
+    </div>
+    
+    <div class="main-container">
+        <div class="panel">
+            <h3>素描勾勒 (输入)</h3>
             <canvas id="inputCanvas"></canvas>
         </div>
-        <div class="controls">
-            <button onclick="clearCanvas()">清空卷轴</button>
-            <p>提示：随手画一条线，看群山如何生长</p>
+        
+        <div class="panel">
+            <h3>青绿山水 (生成)</h3>
+            <canvas id="outputCanvas"></canvas>
         </div>
     </div>
     <script src="script.js"></script>
