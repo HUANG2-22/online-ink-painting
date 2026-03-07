@@ -1,10 +1,9 @@
 /**
- * 墨染青绿 - 修复版 (解决坐标偏移与加载问题)
+ * 墨染青绿 - 最终修复版 (AI 模型 + 坐标修正 + 青绿滤镜)
  */
 
-
-// 建议下载模型后上传到你的仓库，使用相对路径
-const MODEL_URL = 'model/model.json'; 
+// 这是一个目前依然活跃且允许跨域加载的风景模型地址
+const MODEL_URL = 'https://raw.githubusercontent.com/yining1023/pix2pix_tensorflowjs/master/models/scenery/model.json';
 
 let model;
 const iCanvas = document.getElementById('inputCanvas');
@@ -16,36 +15,35 @@ let isDrawing = false;
 let mode = 'brush'; 
 const MODEL_SIZE = 256;
 
-// 1. 初始化
+// 1. 初始化 AI 与画布
 async function init() {
-    // 强制设置 Canvas 像素大小，确保与 CSS 比例一致
+    // 强制同步物理像素与显示尺寸
     iCanvas.width = oCanvas.width = 500;
     iCanvas.height = oCanvas.height = 600;
 
     const statusTag = document.getElementById('status');
     try {
-        // 如果本地没有模型，这里会报错，转而尝试引用备用云端（部分网络可用）
+        if(statusTag) statusTag.innerText = "正在唤醒 AI 笔墨 (15MB)...";
+        // 尝试从镜像仓库加载模型
         model = await tf.loadLayersModel(MODEL_URL);
-        if(statusTag) statusTag.innerText = "🎨 AI 已就绪";
+        if(statusTag) statusTag.innerText = "🎨 AI 已就绪，请在左侧勾勒山河";
     } catch (e) {
-        console.warn("本地模型未找到，尝试云端备用...");
-        try {
-            // 这是一个常用的公共镜像地址
-            model = await tf.loadLayersModel('https://raw.githubusercontent.com/mizchi/tfjs-pix2pix/master/models/scenery/model.json');
-            if(statusTag) statusTag.innerText = "🎨 AI 已从镜像加载";
-        } catch (err) {
-            if(statusTag) statusTag.innerText = "无法加载 AI 模型，请确保 model 文件夹已上传";
-        }
+        console.error(e);
+        if(statusTag) statusTag.innerText = "模型加载失败，请检查网络或更换模型路径";
     }
+
+    // 初始化渲染层背景（仿宣纸）
+    octx.fillStyle = '#f0ede5';
+    octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 }
 
-// 2. 精确坐标计算 (修复轨迹不准的关键)
+// 2. 坐标修正逻辑 (关键：解决轨迹不准)
 function getCanvasPos(e) {
     const rect = iCanvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
-    // 计算缩放比例（防止 CSS 缩放导致位移）
+    // 计算缩放比：Canvas 内部像素尺寸 / 页面显示尺寸
     const scaleX = iCanvas.width / rect.width;
     const scaleY = iCanvas.height / rect.height;
 
@@ -55,13 +53,13 @@ function getCanvasPos(e) {
     };
 }
 
-// 3. 绘图函数
+// 3. 绘图交互
 function start(e) {
     isDrawing = true;
     const pos = getCanvasPos(e);
     ictx.beginPath();
     ictx.moveTo(pos.x, pos.y);
-    e.preventDefault(); // 防止手机端滑动页面
+    if(e.cancelable) e.preventDefault();
 }
 
 function move(e) {
@@ -70,7 +68,7 @@ function move(e) {
 
     if (mode === 'brush') {
         ictx.globalCompositeOperation = 'source-over';
-        ictx.lineWidth = 4; // 稍微加粗线条，利于 AI 识别
+        ictx.lineWidth = 4; // 加粗线条让 AI 更容易识别形状
         ictx.lineCap = 'round';
         ictx.lineJoin = 'round';
         ictx.strokeStyle = '#000000';
@@ -79,10 +77,10 @@ function move(e) {
     } else {
         ictx.globalCompositeOperation = 'destination-out';
         ictx.beginPath();
-        ictx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+        ictx.arc(pos.x, pos.y, 25, 0, Math.PI * 2);
         ictx.fill();
     }
-    e.preventDefault();
+    if(e.cancelable) e.preventDefault();
 }
 
 async function end() {
@@ -100,18 +98,44 @@ async function end() {
                 .expandDims();
             
             const prediction = model.predict(input);
-            tf.browser.toPixels(prediction.squeeze().add(1).div(2), oCanvas);
+            
+            // 预测完成后，将其绘制到输出画布
+            tf.browser.toPixels(prediction.squeeze().add(1).div(2), oCanvas).then(() => {
+                applyCyanGreenFilter(); // 实时上色：转为青绿山水风格
+            });
         });
     }
 }
 
-// 4. 重置功能
+// 4. 风格转换：强行将普通风景映射为青绿山水色调
+function applyCyanGreenFilter() {
+    octx.save();
+    // 使用 multiply 模式叠加石青/石绿色
+    octx.globalCompositeOperation = 'color'; 
+    octx.globalAlpha = 0.4;
+    
+    // 创建一个径向渐变：山顶偏蓝(石青)，山底偏绿(石绿)
+    let grad = octx.createLinearGradient(0, 0, 0, oCanvas.height);
+    grad.addColorStop(0.2, '#1a3a5a'); // 石青
+    grad.addColorStop(0.6, '#2d5a27'); // 石绿
+    grad.addColorStop(0.9, '#8c7e6d'); // 赭石
+    
+    octx.fillStyle = grad;
+    octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
+    octx.restore();
+}
+
+// 5. 重置功能
 window.clearAll = function() {
     ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
     octx.fillStyle = '#f0ede5';
     octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
     ictx.beginPath();
 };
+
+// 按钮切换
+document.getElementById('brushBtn').onclick = () => mode = 'brush';
+document.getElementById('eraserBtn').onclick = () => mode = 'eraser';
 
 // 事件绑定
 iCanvas.addEventListener('mousedown', start);
