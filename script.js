@@ -6,70 +6,62 @@ const octx = oCanvas.getContext('2d');
 let drawing = false;
 let mode = 'brush';
 
+// 初始化画布
 [iCanvas, oCanvas].forEach(c => {
-    c.width = 500;
+    c.width = 600;
     c.height = 600;
 });
 
-// 核心色调：经典的王希孟《千里江山图》色系
-const palette = {
-    line: '#2b2b2b',     // 墨线
-    stone: '#5c4b37',    // 赭石（底部）
-    mid: '#3a6342',      // 石绿（山腰）
-    top: '#1e488f',      // 石青（山顶）
-    paper: '#f2e9d9'     // 仿旧宣纸
+// 青绿山水核心色调
+const PALETTE = {
+    outline: '#2c3e50', // 浓墨勾勒
+    green: '#2d5a27',   // 石绿
+    blue: '#1a3a5a',    // 石青
+    ochre: '#8c7e6d',   // 赭石
+    paper: '#f0ede5'    // 宣纸底色
 };
 
-function getInkStyle(y) {
-    // 根据高度返回颜色和透明度，模拟层叠感
-    if (y < 250) return { color: palette.top, alpha: 0.15 };
-    if (y < 450) return { color: palette.mid, alpha: 0.2 };
-    return { color: palette.stone, alpha: 0.25 };
-}
-
-function generateLandscape(x, y) {
-    const style = getInkStyle(y);
+// 模拟 LingDong 的山体生成算法
+function drawMountain(x, y) {
+    const height = Math.random() * 100 + 50;
+    const width = Math.random() * 80 + 40;
+    
     octx.save();
     
-    // 模拟水墨晕染扩散
-    const layers = 12; 
-    for (let i = 0; i < layers; i++) {
-        const offset = (Math.random() - 0.5) * 40;
-        const size = Math.random() * 25 + 5;
-        
-        // 关键：不规则的多边形模拟碎石皴法
-        drawShanshuiStroke(x + offset, y + offset, size, style);
-    }
-    octx.restore();
-}
-
-function drawShanshuiStroke(x, y, size, style) {
-    octx.beginPath();
-    octx.globalAlpha = style.alpha;
-    octx.fillStyle = style.color;
+    // 1. 绘制山体阴影/基色 (赭石渐变到石绿)
+    let grad = octx.createLinearGradient(x, y - height, x, y);
+    grad.addColorStop(0, PALETTE.blue);
+    grad.addColorStop(0.5, PALETTE.green);
+    grad.addColorStop(1, PALETTE.ochre);
     
-    // 生成一个随机的“岩石状”多边形
-    const points = 6;
-    for (let i = 0; i < points; i++) {
-        const angle = (i / points) * Math.PI * 2;
-        const dist = size * (0.6 + Math.random() * 0.4);
-        const px = x + Math.cos(angle) * dist;
-        const py = y + Math.sin(angle) * dist;
-        if (i === 0) octx.moveTo(px, py);
-        else octx.lineTo(px, py);
+    octx.fillStyle = grad;
+    octx.globalAlpha = 0.7;
+    
+    // 生成不规则的山脊形状 (抖动算法)
+    octx.beginPath();
+    octx.moveTo(x - width, y);
+    
+    for (let i = -width; i <= width; i += 5) {
+        // 关键：引入随机偏移模拟岩石崎岖感
+        const jitter = Math.sin(i * 0.1) * 10 + (Math.random() - 0.5) * 15;
+        const currY = y - (Math.cos((i / width) * (Math.PI / 2)) * height) + jitter;
+        octx.lineTo(x + i, currY);
     }
+    
+    octx.lineTo(x + width, y);
     octx.closePath();
     octx.fill();
 
-    // 偶尔添加细微的墨色勾勒边框
-    if (Math.random() > 0.8) {
-        octx.strokeStyle = palette.line;
-        octx.globalAlpha = 0.1;
-        octx.stroke();
-    }
+    // 2. 勾勒边缘 (模拟“皴法”)
+    octx.strokeStyle = PALETTE.outline;
+    octx.lineWidth = 0.5;
+    octx.globalAlpha = 0.3;
+    octx.stroke();
+
+    octx.restore();
 }
 
-// --- 交互逻辑 ---
+// 交互逻辑
 function handleMove(e) {
     if (!drawing) return;
     const rect = iCanvas.getBoundingClientRect();
@@ -77,44 +69,26 @@ function handleMove(e) {
     const y = e.clientY - rect.top;
 
     if (mode === 'brush') {
-        // 左侧：绘制具有“枯笔”感的勾勒线
-        ictx.strokeStyle = 'rgba(0,0,0,0.6)';
-        ictx.lineWidth = 1.5;
+        // 左侧绘制引导线
         ictx.lineTo(x, y);
         ictx.stroke();
 
-        // 右侧：生成山水
-        generateLandscape(x, y);
+        // 右侧生成山体：我们限制生成频率，防止画面太乱
+        if (Math.random() > 0.85) { 
+            drawMountain(x, y);
+        }
     } else {
-        erase(x, y);
+        // 橡皮擦：同时清理两边
+        ictx.clearRect(x-20, y-20, 40, 40);
+        octx.fillStyle = PALETTE.paper;
+        octx.beginPath();
+        octx.arc(x, y, 30, 0, Math.PI*2);
+        octx.fill();
     }
 }
 
-function erase(x, y) {
-    ictx.clearRect(x - 15, y - 15, 30, 30);
-    octx.fillStyle = palette.paper;
-    octx.beginPath();
-    octx.arc(x, y, 30, 0, Math.PI * 2);
-    octx.fill();
-}
-
-iCanvas.addEventListener('mousedown', (e) => { 
-    drawing = true; 
-    ictx.beginPath(); 
-    const rect = iCanvas.getBoundingClientRect();
-    ictx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-});
+iCanvas.addEventListener('mousedown', () => { drawing = true; ictx.beginPath(); });
 iCanvas.addEventListener('mouseup', () => drawing = false);
 iCanvas.addEventListener('mousemove', handleMove);
 
-function clearAll() {
-    ictx.clearRect(0, 0, 500, 600);
-    octx.fillStyle = palette.paper;
-    octx.fillRect(0, 0, 500, 600);
-    // 预刷一层淡墨，模拟空气感
-    octx.globalAlpha = 0.05;
-    octx.fillStyle = '#8c7e6d';
-    octx.fillRect(0,0,500,600);
-}
-
-clearAll();
+// 按钮逻辑... (保留之前的按钮绑定)
