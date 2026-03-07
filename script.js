@@ -24,7 +24,7 @@ async function init() {
 
     const statusTag = document.getElementById('status');
     try {
-        if(statusTag) statusTag.innerText = "正在唤醒 AI 笔墨 (15MB)...";
+        if(statusTag) statusTag.innerText = "正在唤醒 AI 笔墨 ....";
         // 尝试从镜像仓库加载模型
         model = await tf.loadLayersModel(MODEL_URL);
         if(statusTag) statusTag.innerText = "🎨 AI 已就绪，请在左侧勾勒山河";
