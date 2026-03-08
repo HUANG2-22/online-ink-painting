@@ -1142,7 +1142,7 @@ function renderLandscape(versionToken) {
     drawTreeBelts(m);
     drawBrushRidgeStroke(m);
     drawMistBand(m);
-    drawSmallHouse(m);
+    //drawSmallHouse(m);
   }
 
   drawWaterAndReflections(mountains);
