@@ -208,7 +208,7 @@ function smoothPoints(points, passes = 2) {
   let pts = points.map(p => ({ x: p.x, y: p.y }));
   for (let pass = 0; pass < passes; pass++) {
     if (pts.length < 3) break;
-    let out = [pts[0]];
+    const out = [pts[0]];
     for (let i = 1; i < pts.length - 1; i++) {
       out.push({
         x: (pts[i - 1].x + pts[i].x * 2 + pts[i + 1].x) / 4,
@@ -273,7 +273,7 @@ function drawPolyline(ctx, pts) {
    Canvas setup
 ---------------------------------- */
 function setupCanvas() {
-  PRNG.seed('qinglu-layer-order-v3');
+  PRNG.seed('qinglu-final-safe-v1');
   Noise.noiseSeed(456789);
   Noise.noiseDetail(5, 0.52);
 
@@ -290,9 +290,9 @@ function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
-  bg.addColorStop(0, '#b18b54');
-  bg.addColorStop(0.42, '#c89f66');
-  bg.addColorStop(1, '#d6ae76');
+  bg.addColorStop(0, '#c8a672');
+  bg.addColorStop(0.42, '#d8bb8d');
+  bg.addColorStop(1, '#ead3ad');
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
@@ -462,16 +462,15 @@ function makeMountainFromStroke(stroke, index, total) {
     });
   }
 
-  // 让底边跟随轮廓，不是直线下压
   const footPoints = [];
   for (let i = ridge.length - 1; i >= 0; i--) {
     const p = ridge[i];
     const t = i / (ridge.length - 1);
     const n = Noise.noise(t * 5.0, seed * 0.031 + 12.7);
-    const baseDrop = mapVal(depth, 0, 1, 128, 88);
+    const baseDrop = mapVal(depth, 0, 1, 145, 98);
     footPoints.push({
-      x: p.x + (n - 0.5) * 6,
-      y: p.y + baseDrop + (n - 0.5) * 3 + Math.sin(t * Math.PI) * 2
+      x: p.x + (n - 0.5) * 4,
+      y: p.y + baseDrop + (n - 0.5) * 5 + Math.sin(t * Math.PI) * 3
     });
   }
 
@@ -488,65 +487,50 @@ function makeMountainFromStroke(stroke, index, total) {
 }
 
 /* ---------------------------------
-   1) 山体填充颜色与透明度控制
-   下面两个函数是主要控制区域
+   Mountain body
 ---------------------------------- */
-
-// 这个函数控制“山体主体填色”
-// 重点：
-// - 颜色渐层
-// - 顶部更深
-// - 底部逐渐透明
 function drawMountainBody(m) {
   const topY = Math.min(...m.ridge.map(p => p.y));
   const bottomY = Math.max(...m.footPoints.map(p => p.y));
+  const fillBottom = bottomY + 28;
+
+  if (!Number.isFinite(topY) || !Number.isFinite(bottomY)) return;
+  if (bottomY <= topY + 10) return;
+  if (!m.poly || m.poly.length < 6) return;
 
   octx.save();
   polygonPath(octx, m.poly);
   octx.clip();
 
-  // ---- 主体颜色渐层：这里控制山体大色 ----
-  // 你可以改这里的 rgba 数值，控制蓝、绿、赭的比例
-  const g = octx.createLinearGradient(0, topY, 0, bottomY+33);//bottomY->bottomY+33
-
-  // 顶部更深的蓝绿
-  g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
-  g.addColorStop(0.30, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);//0.18->0.30
-
-  // 中部青绿色
+  const g = octx.createLinearGradient(0, topY, 0, fillBottom);
+  g.addColorStop(0.00, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.06})`);
+  g.addColorStop(0.22, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);
   g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
-
-  // 下部偏石绿/赭绿
-  g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
-
-  // 最底部变得更透明
-  g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
+  g.addColorStop(0.74, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
+  g.addColorStop(0.88, `rgba(110,108,80,0.07)`);
+  g.addColorStop(1.00, `rgba(110,108,80,0.035)`);
 
   octx.fillStyle = g;
-  octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
+  octx.fillRect(0, topY, oCanvas.width, fillBottom - topY);
 
-  // ---- 顶部随机加深的蓝 / 绿罩染 ----
-  // 这里专门控制“山顶颜色更重”
   const topColor = randChoice([
-    ['34,74,128', rand(0.38, 0.76)],  // 蓝
-    ['52,102,96', rand(0.07, 0.14)],  // 青绿
-    ['76,120,88', rand(0.06, 0.12)]   // 绿
+    ['34,74,128', rand(0.10, 0.18)],
+    ['52,102,96', rand(0.07, 0.14)],
+    ['76,120,88', rand(0.06, 0.12)]
   ]);
 
-  const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
+  const topWash = octx.createLinearGradient(0, topY, 0, fillBottom);
   topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
-  topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);//0.22->0.33
-  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
-  topWash.addColorStop(1.00, `rgba(${topColor[0]},0.1)`);
+  topWash.addColorStop(0.26, `rgba(${topColor[0]},${topColor[1] * 0.5})`);
+  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.01)`);
+  topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
 
   octx.fillStyle = topWash;
-  octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
+  octx.fillRect(0, topY, oCanvas.width, fillBottom - topY);
 
   octx.restore();
 }
 
-// 这个函数控制“山体表面额外青绿渐层块”
-// 如果想调石青 / 石绿的随机变化，主要看这里
 function drawBlueGreenLayers(m) {
   const layerDefs = [
     { off: 0, alpha: 0.18, hue: '48,90,124' },
@@ -568,13 +552,14 @@ function drawBlueGreenLayers(m) {
     }
 
     const foot = [];
+    const expandDrop = 78;
     for (let i = layer.length - 1; i >= 0; i--) {
       const p = layer[i];
       const t = i / (layer.length - 1);
       const n = Noise.noise(t * 4.2, m.seed * 0.025 + 30 + layerDef.off);
       foot.push({
-        x: p.x + (n - 0.5) * 4,
-        y: p.y + 95 + (n - 0.5) * 20
+        x: p.x + (n - 0.5) * 3,
+        y: p.y + expandDrop + (n - 0.5) * 10
       });
     }
 
@@ -584,7 +569,6 @@ function drawBlueGreenLayers(m) {
     polygonPath(octx, poly);
     octx.clip();
 
-    // 这里控制附加青绿块的透明渐层
     const localTop = Math.min(...layer.map(p => p.y));
     const localBottom = Math.max(...foot.map(p => p.y));
     const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
@@ -598,13 +582,11 @@ function drawBlueGreenLayers(m) {
     octx.restore();
   }
 
-  // 随机青绿斑块
   for (let i = 0; i < m.ridge.length; i += 4) {
     const p = m.ridge[i];
     const cy = p.y + rand(14, 44);
     const r = rand(8, 22);
 
-    // 这里控制随机色：蓝 / 青 / 绿
     const palette = randChoice([
       ['60,96,126', rand(0.04, 0.09)],
       ['78,124,116', rand(0.04, 0.08)],
@@ -623,8 +605,7 @@ function drawBlueGreenLayers(m) {
 }
 
 /* ---------------------------------
-   Brush-like ridge outline
-   起笔/收笔有粗细变化
+   Ridge outline
 ---------------------------------- */
 function drawBrushRidgeStroke(m) {
   const pts = m.ridge;
@@ -639,7 +620,6 @@ function drawBrushRidgeStroke(m) {
     const p1 = pts[i];
     const t = i / (pts.length - 1);
 
-    // 起笔细，中段厚，收笔细
     const taper = Math.sin(t * Math.PI);
     const w = 0.55 + taper * (1.2 + (1 - m.depth) * 0.5);
 
@@ -650,7 +630,6 @@ function drawBrushRidgeStroke(m) {
     octx.lineWidth = w;
     octx.stroke();
 
-    // 轻微侧锋墨痕
     if (rnd() < 0.72) {
       octx.beginPath();
       octx.moveTo(p0.x + rand(-1.5, 1.5), p0.y + rand(-1.5, 1.5));
@@ -661,7 +640,6 @@ function drawBrushRidgeStroke(m) {
     }
   }
 
-  // 飞白
   for (let i = 1; i < pts.length; i += 3) {
     if (rnd() < 0.45) {
       const p0 = pts[i - 1];
@@ -690,7 +668,6 @@ function drawContourLines(m) {
       const n = Noise.noise(t * 4.2, k * 0.45 + m.seed * 0.011);
       const n2 = Noise.noise(t * 10.0, k * 0.12 + m.seed * 0.017);
       const bend = Math.sin(t * Math.PI) * 14;
-
       const footY = m.footPoints[m.footPoints.length - 1 - i].y;
 
       line.push({
@@ -1054,7 +1031,17 @@ function renderLandscape() {
   resetOutputScene();
 
   const brushStrokes = strokes
-    .filter(s => s.tool === 'brush' && s.points.length > 1)
+    .filter(s => {
+      if (s.tool !== 'brush' || s.points.length < 2) return false;
+      let totalLen = 0;
+      for (let i = 1; i < s.points.length; i++) {
+        totalLen += Math.hypot(
+          s.points[i].x - s.points[i - 1].x,
+          s.points[i].y - s.points[i - 1].y
+        );
+      }
+      return totalLen > 36;
+    })
     .map(s => ({
       ...s,
       points: smoothPoints(simplifyPoints(s.points, 2), 2)
@@ -1065,11 +1052,7 @@ function renderLandscape() {
     return;
   }
 
-  // 重要：
-  // 这里不再“按远近排序”
-  // 直接按照用户绘制顺序渲染
-  // 因为 canvas 后画的会盖住前画的，所以为了“先画的在上层”，
-  // 我们要反过来画：最后画的先渲染，最早画的最后渲染
+  // 先画的在上层，所以反过来渲染
   const ordered = brushStrokes.map((s, i) => ({
     stroke: s,
     idx: i
@@ -1079,7 +1062,6 @@ function renderLandscape() {
     makeMountainFromStroke(item.stroke, i, ordered.length)
   );
 
-  // 先画后面的，最后画最早画的
   const renderOrder = mountains.slice().reverse();
 
   for (const m of renderOrder) {
