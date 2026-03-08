@@ -468,10 +468,10 @@ function makeMountainFromStroke(stroke, index, total) {
     const p = ridge[i];
     const t = i / (ridge.length - 1);
     const n = Noise.noise(t * 5.0, seed * 0.031 + 12.7);
-    const baseDrop = mapVal(depth, 0, 1, 168, 112);
+    const baseDrop = mapVal(depth, 0, 1, 128, 88);
     footPoints.push({
       x: p.x + (n - 0.5) * 6,
-      y: p.y + baseDrop + (n - 0.5) * 10 + Math.sin(t * Math.PI) * 5
+      y: p.y + baseDrop + (n - 0.5) * 8 + Math.sin(t * Math.PI) * 3
     });
   }
 
