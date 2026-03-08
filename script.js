@@ -507,7 +507,7 @@ function drawMountainBody(m) {
 
   // ---- 主体颜色渐层：这里控制山体大色 ----
   // 你可以改这里的 rgba 数值，控制蓝、绿、赭的比例
-  const g = octx.createLinearGradient(0, topY, 0, bottomY);
+  const g = octx.createLinearGradient(0, topY, 0, bottomY+33);//bottomY->bottomY+33
 
   // 顶部更深的蓝绿
   g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
