@@ -538,7 +538,7 @@ function drawMountainBody(m) {
   const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
   topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
   topWash.addColorStop(0.22, `rgba(${topColor[0]},${topColor[1] * 0.55})`);
-  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
+  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.3)`);
   topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
 
   octx.fillStyle = topWash;
@@ -553,7 +553,7 @@ function drawBlueGreenLayers(m) {
   const layerDefs = [
     { off: 0, alpha: 0.18, hue: '48,90,124' },
     { off: 16, alpha: 0.15, hue: '72,122,118' },
-    { off: 30, alpha: 0.12, hue: '112,146,84' }
+    { off: 70, alpha: 0.12, hue: '112,146,84' }
   ];
 
   for (const layerDef of layerDefs) {
