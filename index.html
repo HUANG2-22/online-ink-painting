@@ -1,42 +1,36 @@
-
-
-
-<head>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-    <link rel="stylesheet" href="style.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/magenta@1.23.0/dist/magenta.js"></script>
-
-    
-</head>
-<div id="status">正在唤醒 AI 笔墨...</div>
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>青绿山水生机 - 实时生成</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>青绿山水生机 - 实时生成</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/magenta@1.23.0/dist/magenta.js"></script>
 </head>
 <body>
-    <div class="toolbar">
-        <button id="brushBtn" class="active">毛笔</button>
-        <button id="eraserBtn">橡皮</button>
-        <button onclick="clearAll()">重置画卷</button>
+  <div id="status" class="status">正在唤醒 AI 笔墨...</div>
+
+  <div class="toolbar">
+    <button id="brushBtn" class="active" type="button">毛笔</button>
+    <button id="eraserBtn" type="button">橡皮</button>
+    <button id="clearBtn" type="button">重置画卷</button>
+  </div>
+
+  <div class="main-container">
+    <div class="panel">
+      <h3>素描勾勒（输入）</h3>
+      <canvas id="inputCanvas" width="256" height="256"></canvas>
     </div>
-    
-    <div class="main-container">
-        <div class="panel">
-            <h3>素描勾勒 (输入)</h3>
-            <canvas id="inputCanvas"></canvas>
-        </div>
-        
-        <div class="panel">
-            <h3>青绿山水 (生成)</h3>
-            <canvas id="outputCanvas"></canvas>
-        </div>
+
+    <div class="panel">
+      <h3>青绿山水（生成）</h3>
+      <canvas id="outputCanvas" width="256" height="256"></canvas>
     </div>
-    <script src="script.js"></script>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
