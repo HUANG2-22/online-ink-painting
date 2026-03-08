@@ -300,14 +300,14 @@ function resetOutputScene() {
   drawAtmosphericMounts();
   drawGroundMist();
 }
-
+//2600->3600
 function drawPaperTexture() {
-  for (let i = 0; i < 2600; i++) {
+  for (let i = 0; i < 3600; i++) {
     const x = rnd() * oCanvas.width;
     const y = rnd() * oCanvas.height;
     const a = rnd() * 0.045;
     const c = 90 + rnd() * 45;
-    octx.fillStyle = `rgba(${c},${c * 0.7},${c * 0.35},${a})`;
+    octx.fillStyle = `rgba(${c},${c * 0.3},${c * 0.15},${a})`;
     octx.fillRect(x, y, 1, 1);
   }
 }
@@ -507,7 +507,7 @@ function drawMountainBody(m) {
 
   // ---- 主体颜色渐层：这里控制山体大色 ----
   // 你可以改这里的 rgba 数值，控制蓝、绿、赭的比例
-  const g = octx.createLinearGradient(0, topY, 0, bottomY+33);//bottomY->bottomY+33
+  const g = octx.createLinearGradient(0, topY, 0, bottomY-33);//bottomY->bottomY-33
 
   // 顶部更深的蓝绿
   g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
@@ -523,7 +523,7 @@ function drawMountainBody(m) {
   g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
 
   octx.fillStyle = g;
-  octx.fillRect(0, topY, oCanvas.width, bottomY+33 - topY);
+  octx.fillRect(0, topY, oCanvas.width, bottomY-33 - topY);
 
   // ---- 顶部随机加深的蓝 / 绿罩染 ----
   // 这里专门控制“山顶颜色更重”
