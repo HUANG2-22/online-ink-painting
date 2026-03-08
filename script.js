@@ -523,7 +523,7 @@ function drawMountainBody(m) {
   g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
 
   octx.fillStyle = g;
-  octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
+  octx.fillRect(0, topY, oCanvas.width, bottomY+33 - topY);
 
   // ---- 顶部随机加深的蓝 / 绿罩染 ----
   // 这里专门控制“山顶颜色更重”
