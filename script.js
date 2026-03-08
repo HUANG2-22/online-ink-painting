@@ -550,22 +550,22 @@ function drawMountainBody(m) {
    
    const warmBottom = [];
    for (let i = 0; i < m.ridge.length; i++) {
-  const p = m.ridge[i];
-  warmBottom.push({ x: p.x, y: p.y + 70 });
- }
- for (let i = m.footPoints.length - 1; i >= 0; i--) {
-   warmBottom.push({ x: m.footPoints[i].x, y: m.footPoints[i].y });
- }
+      const p = m.ridge[i];
+      warmBottom.push({ x: p.x, y: p.y + 70 });
+    }
+   for (let i = m.footPoints.length - 1; i >= 0; i--) {
+    warmBottom.push({ x: m.footPoints[i].x, y: m.footPoints[i].y });
+    }
 
-octx.save();
- if (polygonPath(octx, warmBottom)) {
+   octx.save();
+   if (polygonPath(octx, warmBottom)) {
    const yg = octx.createLinearGradient(0, topY + 70, 0, bottomY);
    yg.addColorStop(0.00, 'rgba(210,170,90,0)');
    yg.addColorStop(0.45, 'rgba(220,182,110,0.10)');
    yg.addColorStop(1.00, 'rgba(236,200,132,0.18)');
    octx.fillStyle = yg;
    octx.fill();
- }
+   }
   octx.restore();
 
    
