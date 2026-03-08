@@ -290,9 +290,14 @@ function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
-  bg.addColorStop(0, '#b18b54');
-  bg.addColorStop(0.42, '#c89f66');
-  bg.addColorStop(1, '#d6ae76');
+  //bg.addColorStop(0, '#b18b54');
+  //bg.addColorStop(0.42, '#c89f66');
+  //bg.addColorStop(1, '#d6ae76');
+
+   bg.addColorStop(0, '#d6b98c');
+   bg.addColorStop(0.42, '#e6cfab');
+   bg.addColorStop(1, '#f2e2c7');
+   
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
@@ -468,10 +473,10 @@ function makeMountainFromStroke(stroke, index, total) {
     const p = ridge[i];
     const t = i / (ridge.length - 1);
     const n = Noise.noise(t * 5.0, seed * 0.031 + 12.7);
-    const baseDrop = mapVal(depth, 0, 1, 128, 88);
+    const baseDrop = mapVal(depth, 0, 1, 170, 125);//128->170，88->125
     footPoints.push({
-      x: p.x + (n - 0.5) * 6,
-      y: p.y + baseDrop + (n - 0.5) * 3 + Math.sin(t * Math.PI) * 2
+      x: p.x + (n - 0.5) * 2,
+      y: p.y + baseDrop + (n - 0.5) * 2 + Math.sin(t * Math.PI) * 1.2
     });
   }
 
@@ -517,10 +522,10 @@ function drawMountainBody(m) {
   g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
 
   // 下部偏石绿/赭绿
-  g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
+  g.addColorStop(0.72, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
 
   // 最底部变得更透明
-  g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
+  g.addColorStop(1.00, `rgba(110,108,80,0.3)`);//0.015->0.3
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY-33 - topY);
