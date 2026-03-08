@@ -529,8 +529,8 @@ function drawMountainBody(m) {
   // 这里专门控制“山顶颜色更重”
   const topColor = randChoice([
     ['34,74,128', rand(0.38, 0.76)],  // 蓝
-    ['52,102,96', rand(0.07, 0.14)],  // 青绿
-    ['76,120,88', rand(0.06, 0.12)]   // 绿
+    ['52,102,96', rand(0.07, 0.34)],  // 青绿
+    ['76,120,88', rand(0.06, 0.32)]   // 绿
   ]);
 
   const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
