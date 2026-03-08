@@ -14,9 +14,9 @@ let currentStroke = null;
 let renderTimer = null;
 let strokes = [];
 
-// ---------------------------------
-// PRNG
-// ---------------------------------
+/* ---------------------------
+   PRNG
+---------------------------- */
 const PRNG = {
   s: 1234,
   p: 999979,
@@ -75,9 +75,9 @@ function dist(a, b) {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
-// ---------------------------------
-// Perlin Noise
-// ---------------------------------
+/* ---------------------------
+   Noise
+---------------------------- */
 const Noise = new (function () {
   const PERLIN_YWRAPB = 4;
   const PERLIN_YWRAP = 1 << PERLIN_YWRAPB;
@@ -179,9 +179,9 @@ const Noise = new (function () {
   };
 })();
 
-// ---------------------------------
-// Utilities
-// ---------------------------------
+/* ---------------------------
+   Utilities
+---------------------------- */
 function setStatus(text) {
   if (statusTag) statusTag.innerText = text;
 }
@@ -221,7 +221,7 @@ function smoothPoints(points, passes = 2) {
   return pts;
 }
 
-function resamplePolyline(points, count = 64) {
+function resamplePolyline(points, count = 72) {
   if (points.length < 2) return points.slice();
   const segLens = [];
   let total = 0;
@@ -258,9 +258,7 @@ function polygonPath(ctx, pts) {
   if (!pts.length) return;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) {
-    ctx.lineTo(pts[i].x, pts[i].y);
-  }
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.closePath();
 }
 
@@ -268,9 +266,7 @@ function drawPolyline(ctx, pts) {
   if (pts.length < 2) return;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) {
-    ctx.lineTo(pts[i].x, pts[i].y);
-  }
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
 }
 
 function blobStroke(ctx, pts, opts = {}) {
@@ -308,13 +304,13 @@ function blobStroke(ctx, pts, opts = {}) {
   ctx.restore();
 }
 
-// ---------------------------------
-// Scene setup
-// ---------------------------------
+/* ---------------------------
+   Scene setup
+---------------------------- */
 function setupCanvas() {
-  PRNG.seed('shan-shui-seed');
-  Noise.noiseSeed(123456);
-  Noise.noiseDetail(4, 0.5);
+  PRNG.seed('qinglu-landscape-v2');
+  Noise.noiseSeed(345678);
+  Noise.noiseDetail(5, 0.52);
 
   ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
   ictx.fillStyle = '#f4eee1';
@@ -329,9 +325,9 @@ function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
-  bg.addColorStop(0, '#b48e56');
-  bg.addColorStop(0.5, '#c79b61');
-  bg.addColorStop(1, '#d7ae75');
+  bg.addColorStop(0, '#b18b54');
+  bg.addColorStop(0.42, '#c89f66');
+  bg.addColorStop(1, '#d6ae76');
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
@@ -344,18 +340,18 @@ function drawPaperTexture() {
   for (let i = 0; i < 2600; i++) {
     const x = rnd() * oCanvas.width;
     const y = rnd() * oCanvas.height;
-    const a = rnd() * 0.04;
-    const c = 90 + rnd() * 40;
+    const a = rnd() * 0.045;
+    const c = 90 + rnd() * 45;
     octx.fillStyle = `rgba(${c},${c * 0.9},${c * 0.75},${a})`;
     octx.fillRect(x, y, 1, 1);
   }
 
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 38; i++) {
     const x = rand(0, oCanvas.width);
     const y = rand(0, oCanvas.height);
-    const r = rand(18, 60);
+    const r = rand(18, 64);
     const g = octx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(255,250,240,0.03)');
+    g.addColorStop(0, 'rgba(255,250,240,0.035)');
     g.addColorStop(1, 'rgba(255,250,240,0)');
     octx.fillStyle = g;
     octx.beginPath();
@@ -366,14 +362,14 @@ function drawPaperTexture() {
 
 function drawAtmosphericMounts() {
   for (let layer = 0; layer < 4; layer++) {
-    const baseY = 110 + layer * 65;
-    const alpha = 0.06 + layer * 0.015;
+    const baseY = 100 + layer * 64;
+    const alpha = 0.05 + layer * 0.016;
     const pts = [];
     const count = 28;
     for (let i = 0; i <= count; i++) {
       const x = mapVal(i, 0, count, 0, oCanvas.width);
       const n = Noise.noise(i * 0.18, layer * 0.27);
-      const y = baseY - n * (35 - layer * 5) - Math.sin(i / count * Math.PI * 2) * 8;
+      const y = baseY - n * (36 - layer * 4) - Math.sin(i / count * Math.PI * 2) * 8;
       pts.push({ x, y });
     }
     const poly = pts.concat([
@@ -382,21 +378,21 @@ function drawAtmosphericMounts() {
     ]);
     octx.save();
     polygonPath(octx, poly);
-    octx.fillStyle = `rgba(90,85,78,${alpha})`;
+    octx.fillStyle = `rgba(88,84,78,${alpha})`;
     octx.fill();
     octx.restore();
   }
 }
 
 function drawGroundMist() {
-  for (let i = 0; i < 8; i++) {
-    const cx = rand(50, oCanvas.width - 50);
-    const cy = rand(oCanvas.height * 0.45, oCanvas.height * 0.8);
-    const r = rand(50, 120);
+  for (let i = 0; i < 9; i++) {
+    const cx = rand(40, oCanvas.width - 40);
+    const cy = rand(oCanvas.height * 0.42, oCanvas.height * 0.8);
+    const r = rand(50, 130);
     const g = octx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    g.addColorStop(0, 'rgba(240,236,230,0.10)');
-    g.addColorStop(0.5, 'rgba(240,236,230,0.05)');
-    g.addColorStop(1, 'rgba(240,236,230,0)');
+    g.addColorStop(0, 'rgba(245,240,235,0.11)');
+    g.addColorStop(0.5, 'rgba(245,240,235,0.055)');
+    g.addColorStop(1, 'rgba(245,240,235,0)');
     octx.fillStyle = g;
     octx.beginPath();
     octx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -404,9 +400,9 @@ function drawGroundMist() {
   }
 }
 
-// ---------------------------------
-// Input events
-// ---------------------------------
+/* ---------------------------
+   Input events
+---------------------------- */
 function startDraw(e) {
   e.preventDefault();
   isDrawing = true;
@@ -487,32 +483,34 @@ function scheduleRender() {
   renderTimer = setTimeout(renderLandscape, 45);
 }
 
-// ---------------------------------
-// Mountain generation
-// ---------------------------------
+/* ---------------------------
+   Mountain generation
+---------------------------- */
 function makeMountainFromStroke(stroke, index, total) {
   let pts = simplifyPoints(stroke.points, 2);
   pts = smoothPoints(pts, 2);
-  pts = resamplePolyline(pts, 72);
+  pts = resamplePolyline(pts, 86);
 
   const meanY = avgY(pts);
   const depth = index / Math.max(1, total - 1);
-  const seed = Math.floor(meanY * 17 + pts[0].x * 3 + index * 97);
+  const seed = Math.floor(meanY * 19 + pts[0].x * 5 + index * 131);
 
   const ridge = [];
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
     const t = i / (pts.length - 1);
-    const n1 = Noise.noise(t * 3.2, seed * 0.01);
-    const n2 = Noise.noise(t * 7.7, seed * 0.02 + 5);
-    const lift = mapVal(1 - depth, 0, 1, 8, 38);
+    const n1 = Noise.noise(t * 3.0, seed * 0.01);
+    const n2 = Noise.noise(t * 7.5, seed * 0.02 + 4.2);
+    const jag = Noise.noise(t * 13.0, seed * 0.03 + 9.1);
+    const lift = mapVal(1 - depth, 0, 1, 10, 42);
+
     ridge.push({
-      x: p.x + (n1 - 0.5) * 8,
-      y: p.y - (n1 - 0.5) * lift - (n2 - 0.5) * 10
+      x: p.x + (n1 - 0.5) * 10 + (jag - 0.5) * 4,
+      y: p.y - (n1 - 0.5) * lift - (n2 - 0.5) * 12 - (jag - 0.5) * 8
     });
   }
 
-  let footY = clamp(meanY + mapVal(depth, 0, 1, 150, 100), meanY + 60, oCanvas.height - 28);
+  let footY = clamp(meanY + mapVal(depth, 0, 1, 170, 112), meanY + 70, oCanvas.height - 24);
   const fillPoly = ridge.concat([
     { x: ridge[ridge.length - 1].x, y: footY },
     { x: ridge[0].x, y: footY }
@@ -531,11 +529,11 @@ function makeMountainFromStroke(stroke, index, total) {
 function drawMountainBody(m) {
   const topY = Math.min(...m.ridge.map(p => p.y));
   const g = octx.createLinearGradient(0, topY, 0, m.footY);
-  g.addColorStop(0.00, `rgba(64,96,112,${0.18 + (1 - m.depth) * 0.05})`);
-  g.addColorStop(0.25, `rgba(72,122,128,${0.16 + (1 - m.depth) * 0.05})`);
-  g.addColorStop(0.52, `rgba(96,138,118,${0.15 + (1 - m.depth) * 0.05})`);
-  g.addColorStop(0.78, `rgba(132,146,86,${0.12 + (1 - m.depth) * 0.04})`);
-  g.addColorStop(1.00, `rgba(98,94,72,${0.08 + (1 - m.depth) * 0.03})`);
+  g.addColorStop(0.00, `rgba(54,88,118,${0.18 + (1 - m.depth) * 0.06})`);
+  g.addColorStop(0.22, `rgba(66,114,138,${0.18 + (1 - m.depth) * 0.05})`);
+  g.addColorStop(0.45, `rgba(82,138,126,${0.16 + (1 - m.depth) * 0.05})`);
+  g.addColorStop(0.72, `rgba(110,148,92,${0.12 + (1 - m.depth) * 0.04})`);
+  g.addColorStop(1.00, `rgba(94,92,70,${0.08 + (1 - m.depth) * 0.03})`);
 
   octx.save();
   polygonPath(octx, m.poly);
@@ -545,23 +543,25 @@ function drawMountainBody(m) {
 }
 
 function drawBlueGreenLayers(m) {
-  const offsets = [
-    { off: 0, color: 'rgba(44,88,118,0.18)' },
-    { off: 16, color: 'rgba(72,132,120,0.13)' },
-    { off: 28, color: 'rgba(126,150,86,0.10)' }
+  const layerDefs = [
+    { off: 0, alpha: 0.18, hue: '48,90,124' },
+    { off: 16, alpha: 0.15, hue: '72,122,118' },
+    { off: 30, alpha: 0.12, hue: '112,146,84' }
   ];
 
-  for (const item of offsets) {
+  for (const layerDef of layerDefs) {
     const layer = [];
     for (let i = 0; i < m.ridge.length; i++) {
       const p = m.ridge[i];
       const t = i / (m.ridge.length - 1);
-      const n = Noise.noise(t * 4.0, m.seed * 0.013 + item.off);
+      const n = Noise.noise(t * 4.0, m.seed * 0.013 + layerDef.off);
+      const jag = Noise.noise(t * 9.0, m.seed * 0.021 + layerDef.off);
       layer.push({
-        x: p.x,
-        y: p.y + item.off + (n - 0.5) * 10
+        x: p.x + (jag - 0.5) * 3,
+        y: p.y + layerDef.off + (n - 0.5) * 12
       });
     }
+
     const poly = layer.concat([
       { x: layer[layer.length - 1].x, y: m.footY },
       { x: layer[0].x, y: m.footY }
@@ -569,37 +569,55 @@ function drawBlueGreenLayers(m) {
 
     octx.save();
     polygonPath(octx, poly);
-    octx.fillStyle = item.color;
+    octx.fillStyle = `rgba(${layerDef.hue},${layerDef.alpha})`;
     octx.fill();
     octx.restore();
+  }
+
+  // 随机青绿斑块
+  for (let i = 0; i < m.ridge.length; i += 4) {
+    const p = m.ridge[i];
+    const cy = p.y + rand(14, 44);
+    const r = rand(8, 22);
+    const palette = randChoice([
+      ['60,96,126', rand(0.04, 0.09)],
+      ['78,124,116', rand(0.04, 0.08)],
+      ['104,136,82', rand(0.03, 0.07)]
+    ]);
+    const g = octx.createRadialGradient(p.x, cy, 0, p.x, cy, r);
+    g.addColorStop(0, `rgba(${palette[0]},${palette[1]})`);
+    g.addColorStop(0.6, `rgba(${palette[0]},${palette[1] * 0.45})`);
+    g.addColorStop(1, `rgba(${palette[0]},0)`);
+    octx.fillStyle = g;
+    octx.beginPath();
+    octx.arc(p.x, cy, r, 0, Math.PI * 2);
+    octx.fill();
   }
 }
 
 function drawRidgeOutline(m) {
-  // 主山脊线
   octx.save();
+
   drawPolyline(octx, m.ridge);
-  octx.strokeStyle = `rgba(22,22,20,${0.35 - m.depth * 0.12})`;
-  octx.lineWidth = 1.3;
+  octx.strokeStyle = `rgba(20,20,18,${0.38 - m.depth * 0.10})`;
+  octx.lineWidth = 1.35;
   octx.stroke();
 
-  // 侧锋加墨
   blobStroke(octx, m.ridge, {
-    width: 1.6 + (1 - m.depth) * 0.8,
-    color: `rgba(26,24,20,${0.07 + (1 - m.depth) * 0.04})`,
-    noiseAmp: 0.55
+    width: 1.8 + (1 - m.depth) * 0.9,
+    color: `rgba(24,22,20,${0.08 + (1 - m.depth) * 0.05})`,
+    noiseAmp: 0.58
   });
 
-  // 飞白
   for (let i = 1; i < m.ridge.length; i += 3) {
-    if (rnd() < 0.45) {
+    if (rnd() < 0.48) {
       const p0 = m.ridge[i - 1];
       const p1 = m.ridge[i];
       octx.beginPath();
-      octx.moveTo(lerp(p0.x, p1.x, 0.2), lerp(p0.y, p1.y, 0.2));
-      octx.lineTo(lerp(p0.x, p1.x, 0.85), lerp(p0.y, p1.y, 0.85));
+      octx.moveTo(lerp(p0.x, p1.x, 0.18), lerp(p0.y, p1.y, 0.18));
+      octx.lineTo(lerp(p0.x, p1.x, 0.86), lerp(p0.y, p1.y, 0.86));
       octx.strokeStyle = 'rgba(245,238,224,0.10)';
-      octx.lineWidth = rand(0.3, 0.8);
+      octx.lineWidth = rand(0.25, 0.75);
       octx.stroke();
     }
   }
@@ -608,7 +626,7 @@ function drawRidgeOutline(m) {
 }
 
 function drawContourLines(m) {
-  const layerCount = randi(5, 8);
+  const layerCount = randi(6, 10);
   for (let k = 1; k <= layerCount; k++) {
     const ratio = k / (layerCount + 1);
     const line = [];
@@ -616,50 +634,87 @@ function drawContourLines(m) {
     for (let i = 0; i < m.ridge.length; i++) {
       const p = m.ridge[i];
       const t = i / (m.ridge.length - 1);
-      const n = Noise.noise(t * 4.2, k * 0.4 + m.seed * 0.011);
-      const bend = Math.sin(t * Math.PI) * 12;
+      const n = Noise.noise(t * 4.2, k * 0.45 + m.seed * 0.011);
+      const n2 = Noise.noise(t * 10.0, k * 0.12 + m.seed * 0.017);
+      const bend = Math.sin(t * Math.PI) * 14;
+
       line.push({
-        x: p.x + (n - 0.5) * 4,
-        y: lerp(p.y + 12, m.footY - 8, ratio) - bend * (1 - ratio) * 0.75 + (n - 0.5) * 6
+        x: p.x + (n2 - 0.5) * 5,
+        y: lerp(p.y + 12, m.footY - 10, ratio) - bend * (1 - ratio) * 0.78 + (n - 0.5) * 8
       });
     }
 
     octx.save();
     drawPolyline(octx, line);
-    octx.strokeStyle = `rgba(34,34,30,${0.12 + (1 - ratio) * 0.04})`;
-    octx.lineWidth = 0.9;
+    octx.strokeStyle = `rgba(30,30,26,${0.12 + (1 - ratio) * 0.05})`;
+    octx.lineWidth = 0.95;
     octx.stroke();
     octx.restore();
   }
 }
 
-function drawCunTexture(m) {
+function drawRuggedTexture(m) {
   octx.save();
-  for (let i = 3; i < m.ridge.length - 3; i += 2) {
-    const p = m.ridge[i];
-    const density = mapVal(m.depth, 0, 1, 1.0, 0.5);
-    if (rnd() > 0.75 * density) continue;
 
-    const count = randi(2, 4);
+  // 垂向裂面
+  for (let i = 2; i < m.ridge.length - 2; i += 2) {
+    const p = m.ridge[i];
+    const density = mapVal(m.depth, 0, 1, 1.0, 0.55);
+    if (rnd() > 0.7 * density) continue;
+
+    const count = randi(2, 5);
     for (let j = 0; j < count; j++) {
-      const len = rand(7, 18);
-      const ox = rand(-10, 10);
-      const oy = rand(10, 50);
-      const a = rand(Math.PI * 0.15, Math.PI * 0.42);
+      const len = rand(12, 34);
+      const ox = rand(-8, 8);
+      const oy = rand(8, 55);
+      const a = rand(Math.PI * 0.16, Math.PI * 0.48);
 
       octx.beginPath();
       octx.moveTo(p.x + ox, p.y + oy);
       octx.quadraticCurveTo(
-        p.x + ox + Math.cos(a) * len * 0.4,
-        p.y + oy + len * 0.4,
+        p.x + ox + Math.cos(a) * len * 0.35,
+        p.y + oy + len * 0.35,
         p.x + ox + Math.cos(a) * len,
-        p.y + oy + len * 0.85
+        p.y + oy + len * 0.95
       );
-      octx.strokeStyle = `rgba(28,28,24,${rand(0.06, 0.14)})`;
-      octx.lineWidth = rand(0.45, 1.1);
+      octx.strokeStyle = `rgba(24,24,20,${rand(0.07, 0.16)})`;
+      octx.lineWidth = rand(0.45, 1.2);
       octx.stroke();
     }
   }
+
+  // 横向断层短纹
+  for (let i = 3; i < m.ridge.length - 3; i += 3) {
+    const p = m.ridge[i];
+    if (rnd() > 0.52) continue;
+    const y = p.y + rand(18, 66);
+    const half = rand(5, 18);
+    octx.beginPath();
+    octx.moveTo(p.x - half, y);
+    octx.lineTo(p.x + half, y + rand(-2, 2));
+    octx.strokeStyle = `rgba(28,28,24,${rand(0.04, 0.09)})`;
+    octx.lineWidth = rand(0.45, 0.9);
+    octx.stroke();
+  }
+
+  // 小裂口与墨点
+  for (let i = 0; i < m.ridge.length; i += 2) {
+    const p = m.ridge[i];
+    if (rnd() > 0.42) continue;
+    octx.fillStyle = `rgba(18,18,16,${rand(0.03, 0.08)})`;
+    octx.beginPath();
+    octx.ellipse(
+      p.x + rand(-8, 8),
+      p.y + rand(10, 52),
+      rand(0.8, 2.2),
+      rand(0.5, 1.4),
+      rand(0, Math.PI),
+      0,
+      Math.PI * 2
+    );
+    octx.fill();
+  }
+
   octx.restore();
 }
 
@@ -667,15 +722,15 @@ function drawMossDots(m) {
   octx.save();
   for (let i = 0; i < m.ridge.length; i += 2) {
     const p = m.ridge[i];
-    const count = randi(1, 4);
+    const count = randi(2, 6);
     for (let j = 0; j < count; j++) {
-      const x = p.x + rand(-8, 8);
-      const y = p.y + rand(10, 40);
+      const x = p.x + rand(-10, 10);
+      const y = p.y + rand(12, 46);
       const r = rand(0.7, 2.0);
-      const tone = rnd() < 0.75 ? '22,22,18' : '74,78,44';
-      const alpha = tone === '22,22,18' ? rand(0.06, 0.16) : rand(0.02, 0.06);
-
-      octx.fillStyle = `rgba(${tone},${alpha})`;
+      const palette = rnd() < 0.72
+        ? ['22,22,18', rand(0.06, 0.16)]
+        : ['82,96,48', rand(0.02, 0.06)];
+      octx.fillStyle = `rgba(${palette[0]},${palette[1]})`;
       octx.beginPath();
       octx.arc(x, y, r, 0, Math.PI * 2);
       octx.fill();
@@ -687,14 +742,16 @@ function drawMossDots(m) {
 function drawMistBand(m) {
   const p = m.ridge[Math.floor(m.ridge.length * rand(0.25, 0.75))];
   if (!p) return;
-  const r = rand(40, 90);
-  const g = octx.createRadialGradient(p.x, p.y + rand(18, 50), 0, p.x, p.y + rand(18, 50), r);
-  g.addColorStop(0, 'rgba(245,240,235,0.16)');
+
+  const r = rand(44, 100);
+  const cy = p.y + rand(16, 54);
+  const g = octx.createRadialGradient(p.x, cy, 0, p.x, cy, r);
+  g.addColorStop(0, 'rgba(245,240,235,0.17)');
   g.addColorStop(0.5, 'rgba(245,240,235,0.08)');
   g.addColorStop(1, 'rgba(245,240,235,0)');
   octx.fillStyle = g;
   octx.beginPath();
-  octx.arc(p.x, p.y + rand(18, 50), r, 0, Math.PI * 2);
+  octx.arc(p.x, cy, r, 0, Math.PI * 2);
   octx.fill();
 }
 
@@ -702,22 +759,21 @@ function drawSmallHouse(m) {
   if (rnd() > 0.18) return;
   const p = m.ridge[Math.floor(m.ridge.length * rand(0.2, 0.8))];
   if (!p) return;
+
   const x = p.x + rand(-18, 18);
-  const y = p.y + rand(32, 56);
+  const y = p.y + rand(34, 58);
   const s = rand(7, 11);
 
   octx.save();
-  octx.fillStyle = 'rgba(245,242,236,0.80)';
+  octx.fillStyle = 'rgba(246,242,236,0.80)';
   octx.strokeStyle = 'rgba(40,36,30,0.35)';
   octx.lineWidth = 0.8;
 
-  // 屋身
   octx.beginPath();
   octx.rect(x - s * 0.8, y - s * 0.5, s * 1.6, s);
   octx.fill();
   octx.stroke();
 
-  // 屋顶
   octx.beginPath();
   octx.moveTo(x - s, y - s * 0.45);
   octx.lineTo(x, y - s * 1.05);
@@ -729,90 +785,159 @@ function drawSmallHouse(m) {
   octx.restore();
 }
 
-// ---------------------------------
-// Trees
-// ---------------------------------
-function drawTreeCluster(x, y, scale = 1, inkAlpha = 0.18) {
-  const mode = rnd() < 0.55 ? 'pine' : 'dot';
+/* ---------------------------
+   Trees
+---------------------------- */
+function drawPineTree(x, y, scale, inkAlpha, greenAlpha) {
+  const trunkH = rand(12, 22) * scale;
+  const lean = rand(-2.5, 2.5) * scale;
 
-  if (mode === 'pine') {
-    const trunkH = rand(7, 14) * scale;
-    octx.save();
-    octx.strokeStyle = `rgba(22,22,18,${inkAlpha})`;
-    octx.lineWidth = 0.8 * scale;
+  octx.save();
+
+  // trunk
+  octx.strokeStyle = `rgba(20,20,18,${inkAlpha})`;
+  octx.lineWidth = rand(0.9, 1.6) * scale;
+  octx.beginPath();
+  octx.moveTo(x, y);
+  octx.lineTo(x + lean, y + trunkH);
+  octx.stroke();
+
+  const crownTop = y - rand(6, 14) * scale;
+  const layers = randi(4, 6);
+
+  for (let i = 0; i < layers; i++) {
+    const ly = crownTop + i * rand(4.2, 7.0) * scale;
+    const hw = rand(8, 18) * scale * (1 - i / (layers + 1) * 0.15);
+    const lift = rand(1.2, 3.2) * scale;
+
+    // main ink needles
     octx.beginPath();
-    octx.moveTo(x, y);
-    octx.lineTo(x, y + trunkH);
+    octx.moveTo(x - hw, ly);
+    octx.lineTo(x, ly - lift);
+    octx.lineTo(x + hw, ly);
+    octx.strokeStyle = `rgba(18,18,16,${inkAlpha * rand(0.85, 1.15)})`;
+    octx.lineWidth = rand(0.7, 1.25) * scale;
     octx.stroke();
 
-    const layers = randi(3, 5);
-    for (let i = 0; i < layers; i++) {
-      const ly = y - i * rand(3, 6) * scale;
-      const hw = rand(5, 10) * scale;
+    // secondary soft green tint
+    if (greenAlpha > 0) {
       octx.beginPath();
-      octx.moveTo(x - hw, ly);
-      octx.lineTo(x, ly - rand(1, 3) * scale);
-      octx.lineTo(x + hw, ly);
-      octx.strokeStyle = `rgba(22,22,18,${inkAlpha * rand(0.8, 1.2)})`;
-      octx.lineWidth = rand(0.6, 1.0) * scale;
+      octx.moveTo(x - hw * 0.82, ly + 1);
+      octx.lineTo(x, ly - lift * 0.5);
+      octx.lineTo(x + hw * 0.82, ly + 1);
+      const palette = randChoice([
+        `rgba(64,100,78,${greenAlpha * rand(0.75, 1.0)})`,
+        `rgba(76,112,84,${greenAlpha * rand(0.6, 0.9)})`,
+        `rgba(56,86,96,${greenAlpha * rand(0.55, 0.85)})`
+      ]);
+      octx.strokeStyle = palette;
+      octx.lineWidth = rand(0.55, 1.0) * scale;
       octx.stroke();
     }
-    octx.restore();
-  } else {
-    octx.save();
-    octx.strokeStyle = `rgba(22,22,18,${inkAlpha * 0.9})`;
-    octx.lineWidth = 0.7 * scale;
-    octx.beginPath();
-    octx.moveTo(x, y);
-    octx.lineTo(x, y + rand(6, 12) * scale);
-    octx.stroke();
+  }
 
-    for (let i = 0; i < randi(10, 18); i++) {
-      const dx = rand(-8, 8) * scale;
-      const dy = rand(-10, 2) * scale;
-      const r = rand(0.7, 1.8) * scale;
-      octx.fillStyle = `rgba(22,22,18,${rand(inkAlpha * 0.7, inkAlpha * 1.15)})`;
-      octx.beginPath();
-      octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
-      octx.fill();
-    }
-    for (let i = 0; i < randi(2, 5); i++) {
-      const dx = rand(-7, 7) * scale;
-      const dy = rand(-9, 2) * scale;
-      const r = rand(0.5, 1.4) * scale;
-      octx.fillStyle = `rgba(88,100,56,${rand(0.03, 0.07)})`;
-      octx.beginPath();
-      octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
-      octx.fill();
-    }
-    octx.restore();
+  octx.restore();
+}
+
+function drawDotLeafTree(x, y, scale, inkAlpha, greenAlpha) {
+  octx.save();
+
+  const trunkH = rand(8, 15) * scale;
+  octx.strokeStyle = `rgba(22,22,18,${inkAlpha})`;
+  octx.lineWidth = rand(0.8, 1.4) * scale;
+  octx.beginPath();
+  octx.moveTo(x, y);
+  octx.lineTo(x + rand(-2, 2) * scale, y + trunkH);
+  octx.stroke();
+
+  const crownW = rand(12, 24) * scale;
+  const crownH = rand(10, 20) * scale;
+
+  for (let i = 0; i < randi(18, 30); i++) {
+    const dx = rand(-crownW, crownW);
+    const dy = rand(-crownH, 2 * scale);
+    const r = rand(0.8, 2.6) * scale;
+    octx.fillStyle = `rgba(20,20,18,${rand(inkAlpha * 0.65, inkAlpha * 1.08)})`;
+    octx.beginPath();
+    octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+    octx.fill();
+  }
+
+  for (let i = 0; i < randi(6, 14); i++) {
+    const dx = rand(-crownW * 0.9, crownW * 0.9);
+    const dy = rand(-crownH * 0.9, 0);
+    const r = rand(0.7, 2.1) * scale;
+    const palette = randChoice([
+      `rgba(72,104,64,${greenAlpha * rand(0.65, 1.0)})`,
+      `rgba(86,118,72,${greenAlpha * rand(0.55, 0.95)})`,
+      `rgba(66,96,88,${greenAlpha * rand(0.5, 0.9)})`
+    ]);
+    octx.fillStyle = palette;
+    octx.beginPath();
+    octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+    octx.fill();
+  }
+
+  octx.restore();
+}
+
+function drawTreeCluster(x, y, depth = 0.5) {
+  const bigScale = mapVal(1 - depth, 0, 1, 0.8, 1.55);
+  const inkAlpha = mapVal(1 - depth, 0, 1, 0.10, 0.24);
+  const greenAlpha = mapVal(1 - depth, 0, 1, 0.03, 0.10);
+
+  const treeType = rnd() < 0.58 ? 'pine' : 'dot';
+  if (treeType === 'pine') {
+    drawPineTree(
+      x + rand(-2, 2),
+      y,
+      bigScale * rand(0.92, 1.15),
+      inkAlpha * rand(0.9, 1.1),
+      greenAlpha * rand(0.9, 1.15)
+    );
+  } else {
+    drawDotLeafTree(
+      x + rand(-2, 2),
+      y,
+      bigScale * rand(0.9, 1.18),
+      inkAlpha * rand(0.88, 1.12),
+      greenAlpha * rand(0.85, 1.2)
+    );
   }
 }
 
 function drawTreeBelts(m) {
-  const count = clamp(Math.floor(m.ridge.length / 7), 4, 12);
+  const count = clamp(Math.floor(m.ridge.length / 6), 5, 15);
   for (let i = 0; i < count; i++) {
-    const idx = Math.floor(mapVal(i, 0, Math.max(1, count - 1), 4, m.ridge.length - 5));
+    const idx = Math.floor(mapVal(i, 0, Math.max(1, count - 1), 5, m.ridge.length - 6));
     const p = m.ridge[idx];
-    const x = p.x + rand(-6, 6);
-    const y = p.y + rand(8, 28);
-    const scale = mapVal(1 - m.depth, 0, 1, 0.55, 1.0);
-    drawTreeCluster(x, y, scale, mapVal(1 - m.depth, 0, 1, 0.10, 0.22));
+    const x = p.x + rand(-7, 7);
+    const y = p.y + rand(10, 34);
+
+    // 一处不只一棵，而是小树组
+    const group = randi(1, 3);
+    for (let g = 0; g < group; g++) {
+      drawTreeCluster(
+        x + rand(-10, 10),
+        y + rand(-4, 6),
+        m.depth + rand(-0.08, 0.08)
+      );
+    }
   }
 }
 
-// ---------------------------------
-// Foreground and water
-// ---------------------------------
+/* ---------------------------
+   Water and foreground
+---------------------------- */
 function drawWaterAndReflections(mountains) {
   const waterY = oCanvas.height * 0.84;
 
   octx.save();
-  octx.fillStyle = 'rgba(110,130,124,0.06)';
+  octx.fillStyle = 'rgba(104,128,122,0.07)';
   octx.beginPath();
   octx.moveTo(0, waterY);
-  octx.quadraticCurveTo(oCanvas.width * 0.25, waterY - 10, oCanvas.width * 0.52, waterY + 6);
-  octx.quadraticCurveTo(oCanvas.width * 0.78, waterY + 14, oCanvas.width, waterY - 2);
+  octx.quadraticCurveTo(oCanvas.width * 0.25, waterY - 10, oCanvas.width * 0.52, waterY + 7);
+  octx.quadraticCurveTo(oCanvas.width * 0.78, waterY + 15, oCanvas.width, waterY - 2);
   octx.lineTo(oCanvas.width, oCanvas.height);
   octx.lineTo(0, oCanvas.height);
   octx.closePath();
@@ -828,8 +953,8 @@ function drawWaterAndReflections(mountains) {
       octx.beginPath();
       octx.moveTo(p.x - len * 0.5, ry);
       octx.lineTo(p.x + len * 0.5, ry + rand(-1.2, 1.2));
-      octx.strokeStyle = `rgba(78,102,98,${rand(0.04, 0.09)})`;
-      octx.lineWidth = rand(0.5, 1.0);
+      octx.strokeStyle = `rgba(74,100,96,${rand(0.04, 0.09)})`;
+      octx.lineWidth = rand(0.45, 1.0);
       octx.stroke();
     }
   }
@@ -838,7 +963,7 @@ function drawWaterAndReflections(mountains) {
     const y = rand(waterY, oCanvas.height * 0.96);
     octx.beginPath();
     octx.moveTo(0, y);
-    for (let x = 0; x <= oCanvas.width; x += 20) {
+    for (let x = 0; x <= oCanvas.width; x += 18) {
       octx.lineTo(x, y + Math.sin(x * 0.018 + i * 1.7) * rand(1, 3));
     }
     octx.strokeStyle = 'rgba(70,88,86,0.08)';
@@ -850,7 +975,7 @@ function drawWaterAndReflections(mountains) {
 function drawForegroundDetails() {
   octx.save();
 
-  octx.fillStyle = 'rgba(80,88,70,0.12)';
+  octx.fillStyle = 'rgba(80,88,70,0.13)';
   octx.beginPath();
   octx.moveTo(0, oCanvas.height * 0.88);
   octx.quadraticCurveTo(oCanvas.width * 0.22, oCanvas.height * 0.80, oCanvas.width * 0.38, oCanvas.height * 0.89);
@@ -861,11 +986,11 @@ function drawForegroundDetails() {
   octx.closePath();
   octx.fill();
 
-  for (let i = 0; i < 220; i++) {
+  for (let i = 0; i < 240; i++) {
     const x = rand(0, oCanvas.width);
     const y = rand(oCanvas.height * 0.78, oCanvas.height * 0.98);
     const r = rand(0.5, 1.8);
-    if (rnd() < 0.76) {
+    if (rnd() < 0.74) {
       octx.fillStyle = `rgba(22,22,18,${rand(0.04, 0.13)})`;
     } else {
       octx.fillStyle = `rgba(112,95,62,${rand(0.02, 0.06)})`;
@@ -875,19 +1000,25 @@ function drawForegroundDetails() {
     octx.fill();
   }
 
-  // 前景丛树
-  const treeBaseY = oCanvas.height * 0.86;
-  for (let i = 0; i < 12; i++) {
-    const x = mapVal(i, 0, 11, 25, oCanvas.width - 25) + rand(-10, 10);
-    drawTreeCluster(x, treeBaseY + rand(-8, 8), rand(0.8, 1.25), rand(0.10, 0.22));
+  const treeBaseY = oCanvas.height * 0.865;
+  for (let i = 0; i < 10; i++) {
+    const x = mapVal(i, 0, 9, 35, oCanvas.width - 35) + rand(-12, 12);
+    const group = randi(1, 3);
+    for (let g = 0; g < group; g++) {
+      drawTreeCluster(
+        x + rand(-12, 12),
+        treeBaseY + rand(-10, 8),
+        rand(0.05, 0.25)
+      );
+    }
   }
 
   octx.restore();
 }
 
-// ---------------------------------
-// Main render
-// ---------------------------------
+/* ---------------------------
+   Main render
+---------------------------- */
 function renderLandscape() {
   resetOutputScene();
 
@@ -903,19 +1034,19 @@ function renderLandscape() {
     return;
   }
 
-  // 使用用户笔迹作为主山脊
   const sorted = [...brushStrokes].sort((a, b) => avgY(a.points) - avgY(b.points));
   const mountains = sorted.map((s, i) => makeMountainFromStroke(s, i, sorted.length));
 
-  // 先远后近
+  // 远到近铺大色
   for (const m of mountains) {
     drawMountainBody(m);
     drawBlueGreenLayers(m);
   }
 
+  // 再叠墨线与纹理
   for (const m of mountains) {
     drawContourLines(m);
-    drawCunTexture(m);
+    drawRuggedTexture(m);
     drawMossDots(m);
     drawTreeBelts(m);
     drawRidgeOutline(m);
@@ -929,9 +1060,9 @@ function renderLandscape() {
   setStatus('青绿山水正在随笔生长');
 }
 
-// ---------------------------------
-// Bind events
-// ---------------------------------
+/* ---------------------------
+   Bind
+---------------------------- */
 function bindEvents() {
   if (brushBtn) {
     brushBtn.addEventListener('click', () => {
@@ -962,9 +1093,9 @@ function bindEvents() {
   window.addEventListener('touchend', endDraw);
 }
 
-// ---------------------------------
-// Init
-// ---------------------------------
+/* ---------------------------
+   Init
+---------------------------- */
 function initApp() {
   setupCanvas();
   bindEvents();
