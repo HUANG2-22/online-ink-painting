@@ -537,7 +537,7 @@ function drawMountainBody(m) {
   topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
   topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);//0.22->0.33
   topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
-  topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
+  topWash.addColorStop(1.00, `rgba(${topColor[0]},0.1)`);
 
   octx.fillStyle = topWash;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
