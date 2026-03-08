@@ -1,8 +1,10 @@
 :root {
-  --paper-color: #f0ede5;
+  --paper-color: #f3efe3;
   --border-color: #8c7e6d;
-  --bg-color: #2c3e50;
-  --active-green: #2d5a27;
+  --bg-color: #24313d;
+  --panel-bg: rgba(255, 255, 255, 0.05);
+  --active-green: #356b45;
+  --text-color: #f3efe3;
 }
 
 * {
@@ -11,21 +13,23 @@
 
 body {
   margin: 0;
-  background-color: var(--bg-color);
-  color: var(--paper-color);
-  font-family: serif;
+  background: linear-gradient(180deg, #24313d 0%, #1d2730 100%);
+  color: var(--text-color);
+  font-family: "Noto Serif SC", "Songti SC", "STSong", serif;
 }
 
 .status {
   text-align: center;
-  padding: 14px 16px 0;
+  padding: 16px 16px 8px;
+  font-size: 16px;
+  letter-spacing: 0.5px;
 }
 
 .toolbar {
   display: flex;
   justify-content: center;
   gap: 10px;
-  padding: 18px 16px;
+  padding: 16px;
   flex-wrap: wrap;
 }
 
@@ -34,13 +38,20 @@ button {
   color: #222;
   border: 1px solid var(--border-color);
   padding: 10px 18px;
+  border-radius: 10px;
   cursor: pointer;
-  border-radius: 8px;
+  font-size: 15px;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
 }
 
 button.active {
   background: var(--active-green);
-  color: #fff;
+  color: white;
+  border-color: var(--active-green);
 }
 
 .main-container {
@@ -52,7 +63,17 @@ button.active {
 }
 
 .panel {
+  background: var(--panel-bg);
+  border-radius: 16px;
+  padding: 18px;
   text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.panel h3 {
+  margin-top: 0;
+  margin-bottom: 14px;
+  font-weight: 600;
 }
 
 canvas {
@@ -61,6 +82,21 @@ canvas {
   height: 512px;
   background-color: var(--paper-color);
   border: 8px solid #5d4a37;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  border-radius: 6px;
   touch-action: none;
+}
+
+@media (max-width: 1200px) {
+  canvas {
+    width: 420px;
+    height: 420px;
+  }
+}
+
+@media (max-width: 768px) {
+  canvas {
+    width: 320px;
+    height: 320px;
+  }
 }
