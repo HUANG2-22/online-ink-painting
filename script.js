@@ -16,7 +16,6 @@ let renderTimer = null;
 let model = null;
 let styleImg = null;
 
-// 把风格图放到你的仓库根目录
 const STYLE_IMAGE_SRC = './style.jpg';
 
 function setStatus(text) {
@@ -51,7 +50,6 @@ async function loadStyleImage() {
 async function initModel() {
   setStatus('正在加载模型...');
 
-  // 兼容不同全局命名
   const magentaNS = window.magenta || window.mm || window.mi;
   console.log('magentaNS =', magentaNS);
 
@@ -63,7 +61,7 @@ async function initModel() {
   console.log('imageModule =', imageModule);
 
   if (!imageModule.ArbitraryStyleTransferNetwork) {
-    throw new Error('ArbitraryStyleTransferNetwork 不存在，说明当前引入的 magenta 包不对');
+    throw new Error('ArbitraryStyleTransferNetwork 不存在，当前引入的 magenta 包不对');
   }
 
   model = new imageModule.ArbitraryStyleTransferNetwork();
@@ -97,7 +95,6 @@ function getPos(e) {
 function startDraw(e) {
   e.preventDefault();
   isDrawing = true;
-
   const pos = getPos(e);
   ictx.beginPath();
   ictx.moveTo(pos.x, pos.y);
@@ -142,45 +139,37 @@ async function renderLandscape() {
 
   if (isGenerating) return;
   isGenerating = true;
-
   setStatus('正在渲染青绿山水...');
 
   try {
     const result = await model.transfer(iCanvas, styleImg);
     console.log('transfer result =', result);
 
-    // 尝试兼容不同返回格式
     let outputTensor = result;
-
     if (result && result.tensor) {
       outputTensor = result.tensor;
     }
 
-    if (outputTensor instanceof tf.Tensor) {
-      const squeezed = outputTensor.squeeze();
-
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = squeezed.shape[1];
-      tempCanvas.height = squeezed.shape[0];
-
-      await tf.browser.toPixels(squeezed, tempCanvas);
-
-      octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
-      octx.drawImage(tempCanvas, 0, 0, oCanvas.width, oCanvas.height);
-
-      squeezed.dispose();
-
-      if (outputTensor !== result && outputTensor.dispose) {
-        outputTensor.dispose();
-      }
-      if (result.dispose) {
-        result.dispose();
-      }
-
-      setStatus('🎨 山水已更新');
-    } else {
+    if (!(outputTensor instanceof tf.Tensor)) {
       throw new Error('模型返回结果不是 Tensor，当前库版本和代码不匹配');
     }
+
+    const squeezed = outputTensor.squeeze();
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = squeezed.shape[1];
+    tempCanvas.height = squeezed.shape[0];
+
+    await tf.browser.toPixels(squeezed, tempCanvas);
+
+    octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
+    octx.drawImage(tempCanvas, 0, 0, oCanvas.width, oCanvas.height);
+
+    squeezed.dispose();
+    if (outputTensor !== result && outputTensor.dispose) outputTensor.dispose();
+    if (result.dispose) result.dispose();
+
+    setStatus('🎨 山水已更新');
   } catch (err) {
     console.error('renderLandscape error:', err);
     setStatus('生成失败: ' + err.message);
