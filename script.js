@@ -471,7 +471,7 @@ function makeMountainFromStroke(stroke, index, total) {
     const baseDrop = mapVal(depth, 0, 1, 168, 112);
     footPoints.push({
       x: p.x + (n - 0.5) * 6,
-      y: p.y + baseDrop + (n - 0.5) * 18 + Math.sin(t * Math.PI) * 10
+      y: p.y + baseDrop + (n - 0.5) * 18 + Math.sin(t * Math.PI) * 3
     });
   }
 
