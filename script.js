@@ -565,21 +565,12 @@ function drawBlueGreenLayers(m) {
 
     const poly = layer.concat(foot);
 
-    octx.save();
-    polygonPath(octx, poly);
-    octx.clip();
-
-    const localTop = Math.min(...layer.map(p => p.y));
-    const localBottom = Math.max(...foot.map(p => p.y));
-    const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
-    gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
-    gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
-    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.01)`);
-
-    octx.fillStyle = gg;
-    octx.fillRect(0, localTop, oCanvas.width, localBottom - localTop);
-
-    octx.restore();
+const localTop = Math.min(...layer.map(p => p.y));
+const localBottom = Math.max(...foot.map(p => p.y));
+const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
+gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
+gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
+gg.addColorStop(1.00, `rgba(${layerDef.hue},0.01)`
   }
 
   for (let i = 0; i < m.ridge.length; i += 4) {
