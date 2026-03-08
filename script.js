@@ -510,14 +510,14 @@ function drawMountainBody(m) {
   const g = octx.createLinearGradient(0, topY, 0, bottomY);
 
   // 顶部更深的蓝绿
-  g.addColorStop(0.00, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.05})`);
-  g.addColorStop(0.18, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);
+  g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
+  g.addColorStop(0.30, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);//0.18->0.30
 
   // 中部青绿色
   g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
 
   // 下部偏石绿/赭绿
-  g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
+  g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
 
   // 最底部变得更透明
   g.addColorStop(1.00, `rgba(110,108,80,0.015)`);
@@ -528,14 +528,14 @@ function drawMountainBody(m) {
   // ---- 顶部随机加深的蓝 / 绿罩染 ----
   // 这里专门控制“山顶颜色更重”
   const topColor = randChoice([
-    ['34,74,128', rand(0.08, 0.16)],  // 蓝
+    ['34,74,128', rand(0.08, 0.36)],  // 蓝
     ['52,102,96', rand(0.07, 0.14)],  // 青绿
     ['76,120,88', rand(0.06, 0.12)]   // 绿
   ]);
 
   const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
   topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
-  topWash.addColorStop(0.22, `rgba(${topColor[0]},${topColor[1] * 0.55})`);
+  topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);//0.22->0.33
   topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
   topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
 
