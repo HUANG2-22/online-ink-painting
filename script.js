@@ -520,7 +520,7 @@ function drawMountainBody(m) {
   g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
 
   // 最底部变得更透明
-  g.addColorStop(0.87, `rgba(110,108,80,0.015)`);
+  g.addColorStop(0.87, `rgba(110,108,80,0.15)`);
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
@@ -590,7 +590,7 @@ function drawBlueGreenLayers(m) {
     const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
     gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
     gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
-    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.01)`);
+    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.1)`);
 
     octx.fillStyle = gg;
     octx.fillRect(0, localTop, oCanvas.width, localBottom - localTop);
