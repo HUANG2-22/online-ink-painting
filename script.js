@@ -12,6 +12,7 @@ let isDrawing = false;
 let currentTool = 'brush';
 let currentStroke = null;
 let renderTimer = null;
+let renderVersion = 0;
 let strokes = [];
 
 /* ---------------------------------
@@ -254,6 +255,19 @@ function resamplePolyline(points, count = 90) {
   return out;
 }
 
+function dedupeClosePoints(points, minDist = 1.2) {
+  if (!points || points.length < 2) return points || [];
+  const out = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const last = out[out.length - 1];
+    const p = points[i];
+    if (Math.hypot(p.x - last.x, p.y - last.y) >= minDist) {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
 function polygonPath(ctx, pts) {
   if (!pts || pts.length < 3) return false;
   ctx.beginPath();
@@ -274,7 +288,7 @@ function drawPolyline(ctx, pts) {
    Canvas setup
 ---------------------------------- */
 function setupCanvas() {
-  PRNG.seed('qinglu-path-fill-v1');
+  PRNG.seed('qinglu-final-stable-v1');
   Noise.noiseSeed(456789);
   Noise.noiseDetail(5, 0.52);
 
@@ -290,7 +304,6 @@ function setupCanvas() {
 function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
-  // 右侧底色，偏淡一点
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
   bg.addColorStop(0, '#c8a672');
   bg.addColorStop(0.42, '#d8bb8d');
@@ -435,7 +448,8 @@ function clearAll() {
 
 function scheduleRender() {
   if (renderTimer) clearTimeout(renderTimer);
-  renderTimer = setTimeout(renderLandscape, 45);
+  const myVersion = ++renderVersion;
+  renderTimer = setTimeout(() => renderLandscape(myVersion), 45);
 }
 
 /* ---------------------------------
@@ -445,12 +459,11 @@ function makeMountainFromStroke(stroke, index, total) {
   let pts = simplifyPoints(stroke.points, 2);
   pts = smoothPoints(pts, 2);
   pts = resamplePolyline(pts, 92);
-
-  // 1. 有效性检查
   pts = pts.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+  pts = dedupeClosePoints(pts, 1.2);
+
   if (pts.length < 2) return null;
 
-  // 2. 过滤过短笔画
   let totalLen = 0;
   for (let i = 1; i < pts.length; i++) {
     totalLen += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
@@ -461,7 +474,7 @@ function makeMountainFromStroke(stroke, index, total) {
   const depth = index / Math.max(1, total - 1);
   const seed = Math.floor(meanY * 19 + pts[0].x * 5 + index * 131);
 
-  const ridge = [];
+  let ridge = [];
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
     const t = i / (pts.length - 1);
@@ -478,28 +491,38 @@ function makeMountainFromStroke(stroke, index, total) {
     }
   }
 
+  ridge = dedupeClosePoints(ridge, 1.2);
   if (ridge.length < 2) return null;
 
-  // 更稳定的山脚
-  const footPoints = [];
+  let footPoints = [];
   for (let i = ridge.length - 1; i >= 0; i--) {
     const p = ridge[i];
     const t = i / Math.max(1, ridge.length - 1);
     const n = Noise.noise(t * 5.0, seed * 0.031 + 12.7);
-    const baseDrop = mapVal(depth, 0, 1, 140, 98);
+    const baseDrop = mapVal(depth, 0, 1, 132, 96);
 
-    const x = p.x + (n - 0.5) * 5;
-    const y = p.y + baseDrop + (n - 0.5) * 6 + Math.sin(t * Math.PI) * 4;
+    const x = p.x + (n - 0.5) * 3;
+    const y = p.y + baseDrop + (n - 0.5) * 4 + Math.sin(t * Math.PI) * 2.5;
 
     if (Number.isFinite(x) && Number.isFinite(y)) {
       footPoints.push({ x, y });
     }
   }
 
+  footPoints = dedupeClosePoints(footPoints, 1.2);
   if (footPoints.length < 2) return null;
 
   const poly = ridge.concat(footPoints);
   if (poly.length < 6) return null;
+
+  const minX = Math.min(...poly.map(p => p.x));
+  const maxX = Math.max(...poly.map(p => p.x));
+  const minY = Math.min(...poly.map(p => p.y));
+  const maxY = Math.max(...poly.map(p => p.y));
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null;
+  if (maxX - minX < 8) return null;
+  if (maxY - minY < 8) return null;
 
   return {
     ridge,
@@ -512,10 +535,8 @@ function makeMountainFromStroke(stroke, index, total) {
 }
 
 /* ---------------------------------
-   直接路径填充版山体，不再 clip + fillRect
+   直接路径填充版山体
 ---------------------------------- */
-
-// 山体主体填色
 function drawMountainBody(m) {
   if (!m || !m.ridge || !m.footPoints || !m.poly) return;
 
@@ -527,32 +548,23 @@ function drawMountainBody(m) {
 
   octx.save();
 
-  // 直接用山体 polygon 填充基础色
   if (polygonPath(octx, m.poly)) {
     const g = octx.createLinearGradient(0, topY, 0, bottomY);
 
-    // 顶部深蓝青
     g.addColorStop(0.00, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.06})`);
     g.addColorStop(0.22, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);
-
-    // 中部青绿
     g.addColorStop(0.46, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
-
-    // 下部石绿/赭绿
     g.addColorStop(0.80, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
-
-    // 底部半透明，避免透明带过大
     g.addColorStop(1.00, `rgba(110,108,80,0.05)`);
 
     octx.fillStyle = g;
     octx.fill();
   }
 
-  // 顶部罩染，直接构造一个顶部多边形，不再用矩形裁切
   const topColor = randChoice([
-    ['34,74,128', rand(0.10, 0.18)], // 蓝
-    ['52,102,96', rand(0.08, 0.16)], // 青绿
-    ['76,120,88', rand(0.07, 0.14)]  // 绿
+    ['34,74,128', rand(0.10, 0.18)],
+    ['52,102,96', rand(0.08, 0.16)],
+    ['76,120,88', rand(0.07, 0.14)]
   ]);
 
   const washTop = m.ridge.map(p => ({ x: p.x, y: p.y }));
@@ -573,7 +585,7 @@ function drawMountainBody(m) {
     const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
     topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
     topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);
-    topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
+    topWash.addColorStop(0.48, `rgba(${topColor[0]},0.015)`);
     topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
     octx.fillStyle = topWash;
     octx.fill();
@@ -583,7 +595,6 @@ function drawMountainBody(m) {
   octx.restore();
 }
 
-// 山体表面额外青绿层
 function drawBlueGreenLayers(m) {
   if (!m || !m.ridge) return;
 
@@ -633,7 +644,6 @@ function drawBlueGreenLayers(m) {
     octx.restore();
   }
 
-  // 随机青绿斑块
   for (let i = 0; i < m.ridge.length; i += 4) {
     const p = m.ridge[i];
     const cy = p.y + rand(14, 44);
@@ -672,7 +682,6 @@ function drawBrushRidgeStroke(m) {
     const p1 = pts[i];
     const t = i / (pts.length - 1);
 
-    // 起笔细，中段厚，收笔细
     const taper = Math.sin(t * Math.PI);
     const w = 0.55 + taper * (1.2 + (1 - m.depth) * 0.5);
 
@@ -1080,8 +1089,20 @@ function drawForegroundDetails() {
 /* ---------------------------------
    Main render
 ---------------------------------- */
-function renderLandscape() {
+function renderLandscape(versionToken) {
+  if (versionToken !== renderVersion) return;
+
+  octx.setTransform(1, 0, 0, 1, 0, 0);
+  octx.globalAlpha = 1;
+  octx.globalCompositeOperation = 'source-over';
+  octx.shadowColor = 'transparent';
+  octx.shadowBlur = 0;
+  octx.shadowOffsetX = 0;
+  octx.shadowOffsetY = 0;
+  octx.filter = 'none';
+
   resetOutputScene();
+  if (versionToken !== renderVersion) return;
 
   const brushStrokes = strokes
     .filter(s => s.tool === 'brush' && s.points.length > 1)
@@ -1095,7 +1116,6 @@ function renderLandscape() {
     return;
   }
 
-  // 真正按空间远近排序：y 越小越远，先画
   const ordered = brushStrokes
     .map((s, i) => ({
       stroke: s,
@@ -1108,7 +1128,8 @@ function renderLandscape() {
     .map((item, i) => makeMountainFromStroke(item.stroke, i, ordered.length))
     .filter(Boolean);
 
-  // 远景先画，近景后画
+  if (versionToken !== renderVersion) return;
+
   for (const m of mountains) {
     drawMountainBody(m);
     drawBlueGreenLayers(m);
