@@ -307,7 +307,7 @@ function drawPaperTexture() {
     const y = rnd() * oCanvas.height;
     const a = rnd() * 0.045;
     const c = 90 + rnd() * 45;
-    octx.fillStyle = `rgba(${c},${c * 0.9},${c * 0.75},${a})`;
+    octx.fillStyle = `rgba(${c},${c * 0.7},${c * 0.35},${a})`;
     octx.fillRect(x, y, 1, 1);
   }
 }
@@ -471,7 +471,7 @@ function makeMountainFromStroke(stroke, index, total) {
     const baseDrop = mapVal(depth, 0, 1, 168, 112);
     footPoints.push({
       x: p.x + (n - 0.5) * 6,
-      y: p.y + baseDrop + (n - 0.5) * 18 + Math.sin(t * Math.PI) * 3
+      y: p.y + baseDrop + (n - 0.5) * 10 + Math.sin(t * Math.PI) * 5
     });
   }
 
@@ -520,7 +520,7 @@ function drawMountainBody(m) {
   g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
 
   // 最底部变得更透明
-  g.addColorStop(1.00, `rgba(110,108,80,0.015)`);
+  g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
@@ -528,7 +528,7 @@ function drawMountainBody(m) {
   // ---- 顶部随机加深的蓝 / 绿罩染 ----
   // 这里专门控制“山顶颜色更重”
   const topColor = randChoice([
-    ['34,74,128', rand(0.08, 0.36)],  // 蓝
+    ['34,74,128', rand(0.38, 0.76)],  // 蓝
     ['52,102,96', rand(0.07, 0.14)],  // 青绿
     ['76,120,88', rand(0.06, 0.12)]   // 绿
   ]);
