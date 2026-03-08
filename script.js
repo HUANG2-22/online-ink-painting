@@ -10,15 +10,16 @@ const clearBtn = document.getElementById('clearBtn');
 
 let isDrawing = false;
 let currentTool = 'brush';
-let lastPos = null;
+let currentStroke = null;
 let renderTimer = null;
 
-// 记录左侧笔迹点，用于在右侧生成山体结构
+// 存储左侧输入笔画
 let strokes = [];
-let currentStroke = null;
+
+// ---------- 基础工具 ----------
 
 function setStatus(text) {
-  statusTag.innerText = text;
+  if (statusTag) statusTag.innerText = text;
 }
 
 function rand(min, max) {
@@ -27,6 +28,19 @@ function rand(min, max) {
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function dist(a, b) {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+function avgY(points) {
+  if (!points.length) return 0;
+  return points.reduce((s, p) => s + p.y, 0) / points.length;
 }
 
 function getPos(e) {
@@ -38,25 +52,48 @@ function getPos(e) {
   };
 }
 
+function simplifyPoints(points, step = 2) {
+  if (points.length <= 2) return points.slice();
+  return points.filter((_, i) => i === 0 || i === points.length - 1 || i % step === 0);
+}
+
+function smoothPoints(points, passes = 1) {
+  let pts = points.map(p => ({ x: p.x, y: p.y }));
+  for (let pass = 0; pass < passes; pass++) {
+    if (pts.length < 3) break;
+    const out = [pts[0]];
+    for (let i = 1; i < pts.length - 1; i++) {
+      out.push({
+        x: (pts[i - 1].x + pts[i].x * 2 + pts[i + 1].x) / 4,
+        y: (pts[i - 1].y + pts[i].y * 2 + pts[i + 1].y) / 4
+      });
+    }
+    out.push(pts[pts.length - 1]);
+    pts = out;
+  }
+  return pts;
+}
+
+// ---------- 画布初始化 ----------
+
 function setupCanvas() {
-  // 左画布：宣纸底
+  ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
   ictx.fillStyle = '#f3efe3';
   ictx.fillRect(0, 0, iCanvas.width, iCanvas.height);
 
-  resetOutputScene();
-
   ictx.lineCap = 'round';
   ictx.lineJoin = 'round';
+
+  resetOutputScene();
 }
 
 function resetOutputScene() {
-  // 右画布底色
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
-  bg.addColorStop(0, '#f5f1e7');
-  bg.addColorStop(0.55, '#efe8d8');
-  bg.addColorStop(1, '#e7decb');
+  bg.addColorStop(0, '#f6f1e6');
+  bg.addColorStop(0.55, '#efe7d8');
+  bg.addColorStop(1, '#e5dbc7');
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
@@ -69,22 +106,22 @@ function drawPaperTexture() {
   for (let i = 0; i < 1800; i++) {
     const x = Math.random() * oCanvas.width;
     const y = Math.random() * oCanvas.height;
-    const a = Math.random() * 0.05;
-    octx.fillStyle = `rgba(90, 80, 60, ${a})`;
+    const a = Math.random() * 0.045;
+    octx.fillStyle = `rgba(96, 84, 62, ${a})`;
     octx.fillRect(x, y, 1, 1);
   }
 }
 
 function drawAtmosphereWash() {
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const x = rand(40, oCanvas.width - 40);
-    const y = rand(30, oCanvas.height * 0.55);
-    const r = rand(80, 180);
+    const y = rand(20, oCanvas.height * 0.55);
+    const r = rand(70, 170);
 
     const g = octx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(130, 160, 145, 0.06)');
-    g.addColorStop(0.7, 'rgba(130, 160, 145, 0.025)');
-    g.addColorStop(1, 'rgba(130, 160, 145, 0)');
+    g.addColorStop(0, 'rgba(135, 150, 135, 0.05)');
+    g.addColorStop(0.6, 'rgba(135, 150, 135, 0.025)');
+    g.addColorStop(1, 'rgba(135, 150, 135, 0)');
     octx.fillStyle = g;
     octx.beginPath();
     octx.arc(x, y, r, 0, Math.PI * 2);
@@ -94,41 +131,46 @@ function drawAtmosphereWash() {
 
 function drawWaterArea() {
   octx.save();
-  octx.fillStyle = 'rgba(110, 145, 135, 0.08)';
+
+  octx.fillStyle = 'rgba(112, 132, 126, 0.07)';
   octx.beginPath();
-  octx.moveTo(0, oCanvas.height * 0.78);
-  octx.quadraticCurveTo(oCanvas.width * 0.3, oCanvas.height * 0.73, oCanvas.width * 0.55, oCanvas.height * 0.8);
-  octx.quadraticCurveTo(oCanvas.width * 0.78, oCanvas.height * 0.85, oCanvas.width, oCanvas.height * 0.78);
+  octx.moveTo(0, oCanvas.height * 0.79);
+  octx.quadraticCurveTo(oCanvas.width * 0.28, oCanvas.height * 0.74, oCanvas.width * 0.56, oCanvas.height * 0.81);
+  octx.quadraticCurveTo(oCanvas.width * 0.78, oCanvas.height * 0.86, oCanvas.width, oCanvas.height * 0.79);
   octx.lineTo(oCanvas.width, oCanvas.height);
   octx.lineTo(0, oCanvas.height);
   octx.closePath();
   octx.fill();
 
-  for (let i = 0; i < 10; i++) {
-    const y = rand(oCanvas.height * 0.78, oCanvas.height * 0.95);
-    octx.strokeStyle = 'rgba(90, 110, 105, 0.10)';
-    octx.lineWidth = rand(0.5, 1.2);
+  for (let i = 0; i < 11; i++) {
+    const y = rand(oCanvas.height * 0.79, oCanvas.height * 0.95);
+    octx.strokeStyle = 'rgba(90, 106, 102, 0.09)';
+    octx.lineWidth = rand(0.4, 1.1);
     octx.beginPath();
-    octx.moveTo(rand(0, 40), y);
-    for (let x = 0; x <= oCanvas.width; x += 25) {
-      octx.lineTo(x, y + Math.sin(x * 0.02 + i) * rand(1.5, 4));
+    octx.moveTo(0, y);
+    for (let x = 0; x <= oCanvas.width; x += 20) {
+      octx.lineTo(x, y + Math.sin(x * 0.018 + i * 1.7) * rand(1.2, 3.2));
     }
     octx.stroke();
   }
+
   octx.restore();
 }
+
+// ---------- 左侧输入交互 ----------
 
 function startDraw(e) {
   e.preventDefault();
   isDrawing = true;
-  lastPos = getPos(e);
+
+  const pos = getPos(e);
 
   ictx.beginPath();
-  ictx.moveTo(lastPos.x, lastPos.y);
+  ictx.moveTo(pos.x, pos.y);
 
   currentStroke = {
     tool: currentTool,
-    points: [lastPos]
+    points: [pos]
   };
 }
 
@@ -140,7 +182,7 @@ function draw(e) {
 
   if (currentTool === 'brush') {
     ictx.globalCompositeOperation = 'source-over';
-    ictx.strokeStyle = '#111';
+    ictx.strokeStyle = '#151515';
     ictx.lineWidth = 4;
   } else {
     ictx.globalCompositeOperation = 'source-over';
@@ -152,7 +194,6 @@ function draw(e) {
   ictx.stroke();
 
   currentStroke.points.push(pos);
-  lastPos = pos;
 }
 
 function endDraw() {
@@ -160,59 +201,52 @@ function endDraw() {
   isDrawing = false;
 
   if (currentStroke && currentStroke.points.length > 1) {
-    strokes.push(currentStroke);
+    if (currentStroke.tool === 'eraser') {
+      eraseByStroke(currentStroke);
+    } else {
+      strokes.push(currentStroke);
+    }
   }
-  currentStroke = null;
 
+  currentStroke = null;
   scheduleRender();
+}
+
+function eraseByStroke(eraserStroke) {
+  const eraserPoints = eraserStroke.points;
+  if (!eraserPoints.length) return;
+
+  const threshold = 20;
+
+  strokes = strokes.map(stroke => {
+    if (stroke.tool !== 'brush') return stroke;
+    const filtered = stroke.points.filter(p => {
+      for (const ep of eraserPoints) {
+        if (Math.hypot(p.x - ep.x, p.y - ep.y) < threshold) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return { ...stroke, points: filtered };
+  }).filter(stroke => stroke.points.length > 1);
+}
+
+function clearAll() {
+  strokes = [];
+  currentStroke = null;
+  ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
+  octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
+  setupCanvas();
+  setStatus('画卷已重置，等待新的山水勾勒');
 }
 
 function scheduleRender() {
   if (renderTimer) clearTimeout(renderTimer);
-  renderTimer = setTimeout(() => {
-    renderLandscapeRuleBased();
-  }, 60);
+  renderTimer = setTimeout(renderLandscapeRuleBased, 50);
 }
 
-function simplifyPoints(points, step = 3) {
-  return points.filter((_, i) => i % step === 0 || i === points.length - 1);
-}
-
-function drawInkStroke(points) {
-  if (points.length < 2) return;
-
-  octx.save();
-  octx.lineCap = 'round';
-  octx.lineJoin = 'round';
-
-  for (let i = 1; i < points.length; i++) {
-    const p0 = points[i - 1];
-    const p1 = points[i];
-    const dx = p1.x - p0.x;
-    const dy = p1.y - p0.y;
-    const dist = Math.hypot(dx, dy);
-
-    octx.strokeStyle = `rgba(28, 28, 28, ${clamp(0.12 + dist * 0.01, 0.12, 0.28)})`;
-    octx.lineWidth = clamp(1 + dist * 0.06, 1, 5);
-
-    octx.beginPath();
-    octx.moveTo(p0.x, p0.y);
-    octx.lineTo(p1.x, p1.y);
-    octx.stroke();
-
-    // 模拟毛边和飞白
-    if (Math.random() < 0.45) {
-      octx.strokeStyle = `rgba(40, 40, 40, 0.05)`;
-      octx.lineWidth = rand(0.3, 1.0);
-      octx.beginPath();
-      octx.moveTo(p0.x + rand(-2, 2), p0.y + rand(-2, 2));
-      octx.lineTo(p1.x + rand(-2, 2), p1.y + rand(-2, 2));
-      octx.stroke();
-    }
-  }
-
-  octx.restore();
-}
+// ---------- 山体与笔墨 ----------
 
 function fillMountainMass(points) {
   if (points.length < 2) return;
@@ -230,52 +264,57 @@ function fillMountainMass(points) {
   octx.lineTo(points[points.length - 1].x, bottomY);
   octx.closePath();
 
-  const grad = octx.createLinearGradient(0, Math.min(...points.map(p => p.y)), 0, bottomY);
-  grad.addColorStop(0, 'rgba(90, 135, 120, 0.10)');
-  grad.addColorStop(0.45, 'rgba(78, 120, 108, 0.16)');
-  grad.addColorStop(1, 'rgba(65, 92, 86, 0.22)');
+  const topY = Math.min(...points.map(p => p.y));
+  const grad = octx.createLinearGradient(0, topY, 0, bottomY);
+  grad.addColorStop(0, 'rgba(92, 106, 98, 0.08)');
+  grad.addColorStop(0.38, 'rgba(74, 86, 80, 0.13)');
+  grad.addColorStop(1, 'rgba(58, 66, 62, 0.20)');
   octx.fillStyle = grad;
   octx.fill();
 
   octx.restore();
 }
 
-function addMossTexture(points) {
+function addQingGreenWash(points) {
+  if (points.length < 2) return;
+
+  const minY = Math.min(...points.map(p => p.y));
+  const maxY = Math.max(...points.map(p => p.y)) + 110;
+
   octx.save();
-  for (let i = 0; i < points.length; i += 2) {
-    const p = points[i];
-    const n = Math.floor(rand(1, 4));
-    for (let j = 0; j < n; j++) {
-      const x = p.x + rand(-8, 8);
-      const y = p.y + rand(8, 30);
-      const r = rand(1, 3.5);
-      octx.fillStyle = `rgba(55, 95, 70, ${rand(0.05, 0.18)})`;
-      octx.beginPath();
-      octx.arc(x, y, r, 0, Math.PI * 2);
-      octx.fill();
-    }
+  octx.beginPath();
+  octx.moveTo(points[0].x, maxY);
+
+  for (const p of points) {
+    octx.lineTo(p.x, p.y + rand(-1.5, 1.5));
   }
-  octx.restore();
-}
 
-function addCunTexture(points) {
-  octx.save();
-  octx.strokeStyle = 'rgba(35, 35, 35, 0.10)';
-  octx.lineWidth = 0.8;
+  octx.lineTo(points[points.length - 1].x, maxY);
+  octx.closePath();
 
-  for (let i = 2; i < points.length - 2; i += 2) {
+  const grad = octx.createLinearGradient(0, minY, 0, maxY);
+  grad.addColorStop(0, 'rgba(78, 110, 96, 0.025)');
+  grad.addColorStop(0.35, 'rgba(92, 126, 108, 0.05)');
+  grad.addColorStop(0.7, 'rgba(102, 120, 82, 0.045)');
+  grad.addColorStop(1, 'rgba(70, 92, 78, 0.02)');
+  octx.fillStyle = grad;
+  octx.fill();
+
+  for (let i = 0; i < points.length; i += 3) {
     const p = points[i];
-    const len = rand(6, 16);
-    const angle = rand(Math.PI * 0.2, Math.PI * 0.45);
+    const cy = p.y + rand(10, 28);
+    const r = rand(7, 18);
 
+    const g = octx.createRadialGradient(p.x, cy, 0, p.x, cy, r);
+    g.addColorStop(0, 'rgba(72, 108, 98, 0.05)');
+    g.addColorStop(0.55, 'rgba(95, 120, 88, 0.03)');
+    g.addColorStop(1, 'rgba(95, 120, 88, 0)');
+    octx.fillStyle = g;
     octx.beginPath();
-    octx.moveTo(p.x + rand(-4, 4), p.y + rand(6, 18));
-    octx.lineTo(
-      p.x + Math.cos(angle) * len,
-      p.y + rand(10, 26) + Math.sin(angle) * len * 0.25
-    );
-    octx.stroke();
+    octx.arc(p.x, cy, r, 0, Math.PI * 2);
+    octx.fill();
   }
+
   octx.restore();
 }
 
@@ -284,83 +323,255 @@ function addMist(points) {
   if (!sample) return;
 
   octx.save();
+  const cx = sample.x;
+  const cy = sample.y + rand(16, 44);
   const r = rand(45, 100);
-  const g = octx.createRadialGradient(sample.x, sample.y + rand(20, 50), 0, sample.x, sample.y + rand(20, 50), r);
+
+  const g = octx.createRadialGradient(cx, cy, 0, cx, cy, r);
   g.addColorStop(0, 'rgba(255,255,255,0.12)');
-  g.addColorStop(0.5, 'rgba(240,240,235,0.08)');
-  g.addColorStop(1, 'rgba(240,240,235,0)');
+  g.addColorStop(0.5, 'rgba(244,242,236,0.08)');
+  g.addColorStop(1, 'rgba(244,242,236,0)');
   octx.fillStyle = g;
   octx.beginPath();
-  octx.arc(sample.x, sample.y + rand(20, 50), r, 0, Math.PI * 2);
+  octx.arc(cx, cy, r, 0, Math.PI * 2);
   octx.fill();
   octx.restore();
 }
 
-function addBlueGreenWash(points) {
-  if (points.length < 2) return;
-
-  const minY = Math.min(...points.map(p => p.y));
-  const maxY = Math.max(...points.map(p => p.y)) + 120;
-
+function addChineseCunTexture(points) {
   octx.save();
-  octx.beginPath();
-  octx.moveTo(points[0].x, maxY);
 
-  for (const p of points) {
-    octx.lineTo(p.x, p.y + rand(-2, 2));
+  for (let i = 2; i < points.length - 1; i += 2) {
+    const p = points[i];
+    const stylePick = Math.random();
+
+    if (stylePick < 0.55) {
+      const len = rand(8, 18);
+      const angle = rand(Math.PI * 0.18, Math.PI * 0.42);
+
+      octx.strokeStyle = `rgba(28, 26, 22, ${rand(0.07, 0.14)})`;
+      octx.lineWidth = rand(0.5, 1.2);
+      octx.beginPath();
+      octx.moveTo(p.x + rand(-4, 4), p.y + rand(10, 24));
+      octx.quadraticCurveTo(
+        p.x + Math.cos(angle) * len * 0.45,
+        p.y + rand(12, 26),
+        p.x + Math.cos(angle) * len,
+        p.y + rand(16, 30)
+      );
+      octx.stroke();
+    } else {
+      const len = rand(6, 14);
+      const angle = rand(Math.PI * 0.25, Math.PI * 0.52);
+
+      octx.strokeStyle = `rgba(24, 22, 18, ${rand(0.06, 0.12)})`;
+      octx.lineWidth = rand(0.7, 1.4);
+      octx.beginPath();
+      octx.moveTo(p.x + rand(-3, 3), p.y + rand(8, 18));
+      octx.lineTo(
+        p.x + Math.cos(angle) * len,
+        p.y + rand(14, 26)
+      );
+      octx.stroke();
+    }
   }
 
-  octx.lineTo(points[points.length - 1].x, maxY);
-  octx.closePath();
+  octx.restore();
+}
 
-  const grad = octx.createLinearGradient(0, minY, 0, maxY);
-  grad.addColorStop(0, 'rgba(78, 128, 115, 0.04)');
-  grad.addColorStop(0.4, 'rgba(90, 150, 125, 0.08)');
-  grad.addColorStop(1, 'rgba(58, 102, 92, 0.03)');
-  octx.fillStyle = grad;
-  octx.fill();
+function addDianTai(points) {
+  octx.save();
+
+  for (let i = 0; i < points.length; i += 2) {
+    const p = points[i];
+    const count = Math.floor(rand(2, 6));
+
+    for (let j = 0; j < count; j++) {
+      const x = p.x + rand(-10, 10);
+      const y = p.y + rand(12, 36);
+      const r = rand(0.7, 2.0);
+
+      octx.fillStyle = `rgba(24, 24, 20, ${rand(0.06, 0.18)})`;
+      octx.beginPath();
+      octx.arc(x, y, r, 0, Math.PI * 2);
+      octx.fill();
+    }
+  }
 
   octx.restore();
 }
 
-function drawTrees(points) {
+function drawBrushStrokeChinese(points) {
+  if (points.length < 2) return;
+
+  octx.save();
+  octx.lineCap = 'butt';
+  octx.lineJoin = 'miter';
+
+  for (let i = 1; i < points.length; i++) {
+    const p0 = points[i - 1];
+    const p1 = points[i];
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const segDist = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+
+    const nx = -Math.sin(angle);
+    const ny = Math.cos(angle);
+    const baseWidth = clamp(segDist * 0.18 + 1.2, 1.2, 6.5);
+
+    // 主笔线
+    octx.strokeStyle = `rgba(26, 24, 20, ${clamp(0.16 + segDist * 0.008, 0.16, 0.30)})`;
+    octx.lineWidth = baseWidth;
+    octx.beginPath();
+    octx.moveTo(p0.x, p0.y);
+    octx.lineTo(p1.x, p1.y);
+    octx.stroke();
+
+    // 侧锋擦笔
+    if (Math.random() < 0.9) {
+      octx.strokeStyle = `rgba(42, 38, 30, ${rand(0.04, 0.09)})`;
+      octx.lineWidth = baseWidth * rand(0.6, 1.3);
+      octx.beginPath();
+      octx.moveTo(
+        p0.x + nx * rand(-1.8, 1.8),
+        p0.y + ny * rand(-1.8, 1.8)
+      );
+      octx.lineTo(
+        p1.x + nx * rand(-3.0, 3.0),
+        p1.y + ny * rand(-3.0, 3.0)
+      );
+      octx.stroke();
+    }
+
+    // 飞白
+    const dryCount = Math.floor(rand(1, 4));
+    for (let j = 0; j < dryCount; j++) {
+      if (Math.random() < 0.55) {
+        const t0 = rand(0.05, 0.45);
+        const t1 = rand(0.55, 0.95);
+
+        const sx = p0.x + dx * t0 + nx * rand(-baseWidth * 0.35, baseWidth * 0.35);
+        const sy = p0.y + dy * t0 + ny * rand(-baseWidth * 0.35, baseWidth * 0.35);
+        const ex = p0.x + dx * t1 + nx * rand(-baseWidth * 0.35, baseWidth * 0.35);
+        const ey = p0.y + dy * t1 + ny * rand(-baseWidth * 0.35, baseWidth * 0.35);
+
+        octx.strokeStyle = `rgba(245, 240, 228, ${rand(0.05, 0.12)})`;
+        octx.lineWidth = rand(0.35, 0.9);
+        octx.beginPath();
+        octx.moveTo(sx, sy);
+        octx.lineTo(ex, ey);
+        octx.stroke();
+      }
+    }
+
+    // 顿挫墨结
+    if (Math.random() < 0.28) {
+      octx.fillStyle = `rgba(20, 18, 16, ${rand(0.04, 0.10)})`;
+      octx.beginPath();
+      octx.ellipse(
+        p1.x + rand(-1.2, 1.2),
+        p1.y + rand(-1.2, 1.2),
+        rand(0.8, 2.8),
+        rand(0.6, 1.8),
+        angle,
+        0,
+        Math.PI * 2
+      );
+      octx.fill();
+    }
+  }
+
+  octx.restore();
+}
+
+// ---------- 树法 ----------
+
+function drawChineseTrees(points) {
   if (points.length < 3) return;
 
   octx.save();
-  for (let i = 1; i < points.length; i += 4) {
+
+  for (let i = 1; i < points.length; i += 5) {
     const p = points[i];
-    if (p.y > oCanvas.height * 0.72) continue;
+    if (p.y > oCanvas.height * 0.74) continue;
 
-    const tx = p.x + rand(-8, 8);
-    const ty = p.y + rand(18, 42);
+    const tx = p.x + rand(-10, 10);
+    const ty = p.y + rand(18, 40);
 
-    octx.strokeStyle = 'rgba(45, 35, 25, 0.22)';
+    octx.strokeStyle = `rgba(34, 28, 22, ${rand(0.10, 0.22)})`;
     octx.lineWidth = rand(0.8, 1.8);
     octx.beginPath();
     octx.moveTo(tx, ty);
-    octx.lineTo(tx, ty + rand(8, 18));
+    octx.lineTo(tx + rand(-2, 2), ty + rand(10, 20));
     octx.stroke();
 
-    const crownR = rand(4, 10);
-    octx.fillStyle = `rgba(62, 96, 72, ${rand(0.12, 0.22)})`;
-    octx.beginPath();
-    octx.arc(tx, ty, crownR, 0, Math.PI * 2);
-    octx.fill();
-
-    octx.fillStyle = `rgba(82, 122, 88, ${rand(0.08, 0.18)})`;
-    octx.beginPath();
-    octx.arc(tx + rand(-3, 3), ty - rand(2, 5), crownR * 0.7, 0, Math.PI * 2);
-    octx.fill();
+    if (Math.random() < 0.55) {
+      drawDianYeTree(tx, ty);
+    } else {
+      drawPineTree(tx, ty);
+    }
   }
+
   octx.restore();
 }
+
+function drawDianYeTree(x, y) {
+  for (let k = 0; k < 16; k++) {
+    const dx = rand(-10, 10);
+    const dy = rand(-12, 4);
+    const r = rand(0.8, 2.2);
+
+    octx.fillStyle = `rgba(28, 28, 22, ${rand(0.08, 0.20)})`;
+    octx.beginPath();
+    octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+    octx.fill();
+  }
+
+  for (let k = 0; k < 6; k++) {
+    const dx = rand(-8, 8);
+    const dy = rand(-10, 2);
+    const r = rand(0.6, 1.8);
+
+    octx.fillStyle = `rgba(96, 102, 62, ${rand(0.03, 0.08)})`;
+    octx.beginPath();
+    octx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+    octx.fill();
+  }
+}
+
+function drawPineTree(x, y) {
+  octx.strokeStyle = `rgba(26, 22, 18, ${rand(0.10, 0.18)})`;
+  octx.lineWidth = rand(0.8, 1.4);
+  octx.beginPath();
+  octx.moveTo(x, y);
+  octx.lineTo(x, y + rand(10, 16));
+  octx.stroke();
+
+  const layers = Math.floor(rand(3, 5));
+  for (let i = 0; i < layers; i++) {
+    const ly = y - i * rand(3, 6);
+    const half = rand(6, 12);
+
+    octx.strokeStyle = `rgba(24, 24, 20, ${rand(0.08, 0.16)})`;
+    octx.lineWidth = rand(0.6, 1.1);
+
+    octx.beginPath();
+    octx.moveTo(x - half, ly);
+    octx.lineTo(x, ly - rand(1, 3));
+    octx.lineTo(x + half, ly);
+    octx.stroke();
+  }
+}
+
+// ---------- 倒影与前景 ----------
 
 function drawReflection(points) {
   if (points.length < 2) return;
 
   octx.save();
   octx.strokeStyle = 'rgba(70, 100, 95, 0.08)';
-  octx.lineWidth = 1.2;
+  octx.lineWidth = 1.1;
 
   for (let i = 1; i < points.length; i += 3) {
     const p = points[i];
@@ -375,44 +586,10 @@ function drawReflection(points) {
   octx.restore();
 }
 
-function renderLandscapeRuleBased() {
-  resetOutputScene();
-
-  const brushStrokes = strokes.filter(s => s.tool === 'brush');
-
-  if (brushStrokes.length === 0) {
-    setStatus('画卷已重置，等待新的山水勾勒');
-    return;
-  }
-
-  // 先按 y 值排序，让高处山先画，低处山后画，形成层次
-  const sorted = [...brushStrokes].sort((a, b) => {
-    const ay = a.points.reduce((sum, p) => sum + p.y, 0) / a.points.length;
-    const by = b.points.reduce((sum, p) => sum + p.y, 0) / b.points.length;
-    return ay - by;
-  });
-
-  for (const stroke of sorted) {
-    const pts = simplifyPoints(stroke.points, 2);
-    fillMountainMass(pts);
-    addBlueGreenWash(pts);
-    addMist(pts);
-    addMossTexture(pts);
-    addCunTexture(pts);
-    drawTrees(pts);
-    drawInkStroke(pts);
-    drawReflection(pts);
-  }
-
-  drawForegroundDetails();
-  setStatus('青绿山水正在随笔生长');
-}
-
 function drawForegroundDetails() {
   octx.save();
 
-  // 前景坡岸
-  octx.fillStyle = 'rgba(75, 95, 78, 0.16)';
+  octx.fillStyle = 'rgba(72, 82, 68, 0.12)';
   octx.beginPath();
   octx.moveTo(0, oCanvas.height * 0.86);
   octx.quadraticCurveTo(oCanvas.width * 0.22, oCanvas.height * 0.8, oCanvas.width * 0.38, oCanvas.height * 0.88);
@@ -423,12 +600,17 @@ function drawForegroundDetails() {
   octx.closePath();
   octx.fill();
 
-  // 点苔
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 170; i++) {
     const x = rand(0, oCanvas.width);
-    const y = rand(oCanvas.height * 0.76, oCanvas.height * 0.98);
-    const r = rand(0.8, 2.4);
-    octx.fillStyle = `rgba(55, 88, 64, ${rand(0.06, 0.18)})`;
+    const y = rand(oCanvas.height * 0.77, oCanvas.height * 0.98);
+    const r = rand(0.6, 2.1);
+
+    if (Math.random() < 0.72) {
+      octx.fillStyle = `rgba(22, 22, 18, ${rand(0.04, 0.14)})`;
+    } else {
+      octx.fillStyle = `rgba(110, 92, 62, ${rand(0.02, 0.07)})`;
+    }
+
     octx.beginPath();
     octx.arc(x, y, r, 0, Math.PI * 2);
     octx.fill();
@@ -437,29 +619,65 @@ function drawForegroundDetails() {
   octx.restore();
 }
 
-function clearAll() {
-  strokes = [];
-  currentStroke = null;
-  ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
-  octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
-  setupCanvas();
-  setStatus('画卷已重置，等待新的山水勾勒');
+// ---------- 主渲染 ----------
+
+function renderLandscapeRuleBased() {
+  resetOutputScene();
+
+  const brushStrokes = strokes
+    .filter(s => s.tool === 'brush' && s.points.length > 1)
+    .map(s => {
+      const simplified = simplifyPoints(s.points, 2);
+      const smoothed = smoothPoints(simplified, 1);
+      return { ...s, points: smoothed };
+    });
+
+  if (brushStrokes.length === 0) {
+    setStatus('画卷已重置，等待新的山水勾勒');
+    return;
+  }
+
+  const sorted = [...brushStrokes].sort((a, b) => avgY(a.points) - avgY(b.points));
+
+  for (const stroke of sorted) {
+    const pts = stroke.points;
+
+    fillMountainMass(pts);
+    addQingGreenWash(pts);
+    addMist(pts);
+    addDianTai(pts);
+    addChineseCunTexture(pts);
+    drawChineseTrees(pts);
+    drawBrushStrokeChinese(pts);
+    drawReflection(pts);
+  }
+
+  drawForegroundDetails();
+  setStatus('青绿山水正在随笔生长');
 }
 
+// ---------- 事件绑定 ----------
+
 function bindEvents() {
-  brushBtn.addEventListener('click', () => {
-    currentTool = 'brush';
-    brushBtn.classList.add('active');
-    eraserBtn.classList.remove('active');
-  });
+  if (brushBtn) {
+    brushBtn.addEventListener('click', () => {
+      currentTool = 'brush';
+      brushBtn.classList.add('active');
+      eraserBtn && eraserBtn.classList.remove('active');
+    });
+  }
 
-  eraserBtn.addEventListener('click', () => {
-    currentTool = 'eraser';
-    eraserBtn.classList.add('active');
-    brushBtn.classList.remove('active');
-  });
+  if (eraserBtn) {
+    eraserBtn.addEventListener('click', () => {
+      currentTool = 'eraser';
+      eraserBtn.classList.add('active');
+      brushBtn && brushBtn.classList.remove('active');
+    });
+  }
 
-  clearBtn.addEventListener('click', clearAll);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearAll);
+  }
 
   iCanvas.addEventListener('mousedown', startDraw);
   iCanvas.addEventListener('mousemove', draw);
@@ -470,9 +688,12 @@ function bindEvents() {
   window.addEventListener('touchend', endDraw);
 }
 
+// ---------- 启动 ----------
+
 function initApp() {
   setupCanvas();
   bindEvents();
+  setStatus('已进入青绿山水画境，开始勾勒山势');
 }
 
 initApp();
