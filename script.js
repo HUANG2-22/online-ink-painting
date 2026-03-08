@@ -3,6 +3,7 @@ const oCanvas = document.getElementById('outputCanvas');
 const ictx = iCanvas.getContext('2d');
 const octx = oCanvas.getContext('2d');
 
+
 const statusTag = document.getElementById('status');
 const brushBtn = document.getElementById('brushBtn');
 const eraserBtn = document.getElementById('eraserBtn');
