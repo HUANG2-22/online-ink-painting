@@ -15,11 +15,20 @@ let renderTimer = null;
 
 let model = null;
 let styleImg = null;
+let styleRepresentation = null;
+
+let modelReady = false;
+let styleReady = false;
+let styleRepReady = false;
 
 const STYLE_IMAGE_SRC = './style.jpg';
 
 function setStatus(text) {
   statusTag.innerText = text;
+}
+
+function allReady() {
+  return modelReady && styleReady && styleRepReady;
 }
 
 function setupCanvas() {
@@ -44,11 +53,12 @@ async function loadStyleImage() {
     styleImg.src = STYLE_IMAGE_SRC;
   });
 
+  styleReady = true;
   console.log('style image loaded');
 }
 
 async function initModel() {
-  setStatus('正在加载模型...');
+  setStatus('正在加载风格迁移模型...');
 
   const magentaNS = window.magenta || window.mm || window.mi;
   console.log('magentaNS =', magentaNS);
@@ -61,22 +71,38 @@ async function initModel() {
   console.log('imageModule =', imageModule);
 
   if (!imageModule.ArbitraryStyleTransferNetwork) {
-    throw new Error('ArbitraryStyleTransferNetwork 不存在，当前引入的 magenta 包不对');
+    throw new Error('ArbitraryStyleTransferNetwork 不存在，当前引入的包不匹配');
   }
 
   model = new imageModule.ArbitraryStyleTransferNetwork();
   await model.initialize();
 
+  modelReady = true;
   console.log('model initialized');
+}
+
+async function prepareStyleRepresentation() {
+  if (!modelReady || !styleReady) {
+    throw new Error('模型或风格图尚未准备好，无法提取风格表示');
+  }
+
+  setStatus('正在提取山水风格特征...');
+  styleRepresentation = await model.predictStyleParameters(styleImg);
+  styleRepReady = true;
+
+  console.log('styleRepresentation ready =', styleRepresentation);
 }
 
 async function initApp() {
   try {
     setupCanvas();
     bindEvents();
+
     await loadStyleImage();
     await initModel();
-    setStatus('🎨 已进入青绿山水画境');
+    await prepareStyleRepresentation();
+
+    setStatus('🎨 已进入青绿山水画境，可以开始绘制');
   } catch (err) {
     console.error(err);
     setStatus('初始化失败: ' + err.message);
@@ -86,6 +112,7 @@ async function initApp() {
 function getPos(e) {
   const rect = iCanvas.getBoundingClientRect();
   const point = e.touches ? e.touches[0] : e;
+
   return {
     x: (point.clientX - rect.left) * (iCanvas.width / rect.width),
     y: (point.clientY - rect.top) * (iCanvas.height / rect.height)
@@ -132,8 +159,8 @@ function scheduleRender() {
 }
 
 async function renderLandscape() {
-  if (!model || !styleImg) {
-    setStatus('模型或风格图尚未准备好');
+  if (!allReady()) {
+    setStatus('模型或风格图仍在加载，请稍候');
     return;
   }
 
@@ -142,8 +169,8 @@ async function renderLandscape() {
   setStatus('正在渲染青绿山水...');
 
   try {
-    const result = await model.transfer(iCanvas, styleImg);
-    console.log('transfer result =', result);
+    const result = await model.stylize(iCanvas, styleRepresentation);
+    console.log('stylize result =', result);
 
     let outputTensor = result;
     if (result && result.tensor) {
@@ -151,7 +178,7 @@ async function renderLandscape() {
     }
 
     if (!(outputTensor instanceof tf.Tensor)) {
-      throw new Error('模型返回结果不是 Tensor，当前库版本和代码不匹配');
+      throw new Error('stylize 返回结果不是 Tensor');
     }
 
     const squeezed = outputTensor.squeeze();
@@ -182,7 +209,7 @@ function clearAll() {
   ictx.clearRect(0, 0, iCanvas.width, iCanvas.height);
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
   setupCanvas();
-  setStatus('画卷已重置，等待新的山水勾勒');
+  setStatus(allReady() ? '画卷已重置，等待新的山水勾勒' : '正在等待模型完成加载');
 }
 
 function bindEvents() {
