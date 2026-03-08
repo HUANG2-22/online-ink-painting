@@ -515,17 +515,17 @@ function drawMountainBody(m) {
   const g = octx.createLinearGradient(0, topY, 0, bottomY-33);//bottomY->bottomY-33
 
   // 顶部更深的蓝绿
-  g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
-  g.addColorStop(0.30, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);//0.18->0.30
+  g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.9})`);//0->0.11,0.05->0.09
+  g.addColorStop(0.30, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.5})`);//0.18->0.30
 
   // 中部青绿色
-  g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
+  g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.4})`);
 
   // 下部偏石绿/赭绿
-  g.addColorStop(0.72, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
+  g.addColorStop(0.72, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.3})`);//0.68->0.80
 
   // 最底部变得更透明
-  g.addColorStop(1.00, `rgba(110,108,80,0.3)`);//0.015->0.3
+  g.addColorStop(1.00, `rgba(110,108,80,0.7)`);//0.015->0.3
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY-33 - topY);
@@ -547,7 +547,29 @@ function drawMountainBody(m) {
   octx.fillStyle = topWash;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
 
+   
+   const warmBottom = [];
+   for (let i = 0; i < m.ridge.length; i++) {
+  const p = m.ridge[i];
+  warmBottom.push({ x: p.x, y: p.y + 70 });
+ }
+ for (let i = m.footPoints.length - 1; i >= 0; i--) {
+   warmBottom.push({ x: m.footPoints[i].x, y: m.footPoints[i].y });
+ }
+
+octx.save();
+ if (polygonPath(octx, warmBottom)) {
+   const yg = octx.createLinearGradient(0, topY + 70, 0, bottomY);
+   yg.addColorStop(0.00, 'rgba(210,170,90,0)');
+   yg.addColorStop(0.45, 'rgba(220,182,110,0.10)');
+   yg.addColorStop(1.00, 'rgba(236,200,132,0.18)');
+   octx.fillStyle = yg;
+   octx.fill();
+ }
   octx.restore();
+
+   
+  //octx.restore();
 }
 
 // 这个函数控制“山体表面额外青绿渐层块”
@@ -1013,7 +1035,7 @@ function drawForegroundDetails() {
 
   octx.fillStyle = 'rgba(80,88,70,0.13)';
   octx.beginPath();
-  octx.moveTo(0, oCanvas.height * 0.88);
+  octx.moveTo(0, oCanvas.height);//*0.88
   octx.quadraticCurveTo(oCanvas.width * 0.22, oCanvas.height * 0.80, oCanvas.width * 0.38, oCanvas.height * 0.89);
   octx.quadraticCurveTo(oCanvas.width * 0.58, oCanvas.height * 0.95, oCanvas.width * 0.74, oCanvas.height * 0.87);
   octx.quadraticCurveTo(oCanvas.width * 0.88, oCanvas.height * 0.81, oCanvas.width, oCanvas.height * 0.91);
