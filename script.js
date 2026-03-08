@@ -518,9 +518,11 @@ function drawMountainBody(m) {
 
   // 下部偏石绿/赭绿
   g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
-
+  
+   // 最底部变得加深
+  g.addColorStop(0.87, ${0.22 + (1 - m.depth) * 0.05})`);
   // 最底部变得更透明
-  g.addColorStop(0.87, `rgba(110,108,80,0.15)`);
+  g.addColorStop(1, `rgba(110,108,80,0.15)`);
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
