@@ -12,7 +12,6 @@ let isDrawing = false;
 let currentTool = 'brush';
 let currentStroke = null;
 let renderTimer = null;
-let renderVersion = 0;
 let strokes = [];
 
 /* ---------------------------------
@@ -255,30 +254,16 @@ function resamplePolyline(points, count = 90) {
   return out;
 }
 
-function dedupeClosePoints(points, minDist = 1.2) {
-  if (!points || points.length < 2) return points || [];
-  const out = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const last = out[out.length - 1];
-    const p = points[i];
-    if (Math.hypot(p.x - last.x, p.y - last.y) >= minDist) {
-      out.push(p);
-    }
-  }
-  return out;
-}
-
 function polygonPath(ctx, pts) {
-  if (!pts || pts.length < 3) return false;
+  if (!pts.length) return;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   ctx.closePath();
-  return true;
 }
 
 function drawPolyline(ctx, pts) {
-  if (!pts || pts.length < 2) return;
+  if (pts.length < 2) return;
   ctx.beginPath();
   ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
@@ -288,7 +273,7 @@ function drawPolyline(ctx, pts) {
    Canvas setup
 ---------------------------------- */
 function setupCanvas() {
-  PRNG.seed('qinglu-final-stable-v1');
+  PRNG.seed('qinglu-layer-order-v3');
   Noise.noiseSeed(456789);
   Noise.noiseDetail(5, 0.52);
 
@@ -305,9 +290,9 @@ function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
   const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
-  bg.addColorStop(0, '#c8a672');
-  bg.addColorStop(0.42, '#d8bb8d');
-  bg.addColorStop(1, '#ead3ad');
+  bg.addColorStop(0, '#b18b54');
+  bg.addColorStop(0.42, '#c89f66');
+  bg.addColorStop(1, '#d6ae76');
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
@@ -320,9 +305,9 @@ function drawPaperTexture() {
   for (let i = 0; i < 2600; i++) {
     const x = rnd() * oCanvas.width;
     const y = rnd() * oCanvas.height;
-    const a = rnd() * 0.04;
-    const c = 95 + rnd() * 35;
-    octx.fillStyle = `rgba(${c},${c * 0.78},${c * 0.5},${a})`;
+    const a = rnd() * 0.045;
+    const c = 90 + rnd() * 45;
+    octx.fillStyle = `rgba(${c},${c * 0.7},${c * 0.35},${a})`;
     octx.fillRect(x, y, 1, 1);
   }
 }
@@ -344,10 +329,9 @@ function drawAtmosphericMounts() {
       { x: 0, y: oCanvas.height * 0.72 }
     ]);
     octx.save();
-    if (polygonPath(octx, poly)) {
-      octx.fillStyle = `rgba(88,84,78,${alpha})`;
-      octx.fill();
-    }
+    polygonPath(octx, poly);
+    octx.fillStyle = `rgba(88,84,78,${alpha})`;
+    octx.fill();
     octx.restore();
   }
 }
@@ -448,8 +432,7 @@ function clearAll() {
 
 function scheduleRender() {
   if (renderTimer) clearTimeout(renderTimer);
-  const myVersion = ++renderVersion;
-  renderTimer = setTimeout(() => renderLandscape(myVersion), 45);
+  renderTimer = setTimeout(renderLandscape, 45);
 }
 
 /* ---------------------------------
@@ -459,22 +442,12 @@ function makeMountainFromStroke(stroke, index, total) {
   let pts = simplifyPoints(stroke.points, 2);
   pts = smoothPoints(pts, 2);
   pts = resamplePolyline(pts, 92);
-  pts = pts.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
-  pts = dedupeClosePoints(pts, 1.2);
-
-  if (pts.length < 2) return null;
-
-  let totalLen = 0;
-  for (let i = 1; i < pts.length; i++) {
-    totalLen += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-  }
-  if (totalLen < 20) return null;
 
   const meanY = avgY(pts);
   const depth = index / Math.max(1, total - 1);
   const seed = Math.floor(meanY * 19 + pts[0].x * 5 + index * 131);
 
-  let ridge = [];
+  const ridge = [];
   for (let i = 0; i < pts.length; i++) {
     const p = pts[i];
     const t = i / (pts.length - 1);
@@ -483,46 +456,26 @@ function makeMountainFromStroke(stroke, index, total) {
     const jag = Noise.noise(t * 13.0, seed * 0.03 + 9.1);
     const lift = mapVal(1 - depth, 0, 1, 10, 42);
 
-    const x = p.x + (n1 - 0.5) * 10 + (jag - 0.5) * 4;
-    const y = p.y - (n1 - 0.5) * lift - (n2 - 0.5) * 12 - (jag - 0.5) * 8;
-
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      ridge.push({ x, y });
-    }
+    ridge.push({
+      x: p.x + (n1 - 0.5) * 10 + (jag - 0.5) * 4,
+      y: p.y - (n1 - 0.5) * lift - (n2 - 0.5) * 12 - (jag - 0.5) * 8
+    });
   }
 
-  ridge = dedupeClosePoints(ridge, 1.2);
-  if (ridge.length < 2) return null;
-
-  let footPoints = [];
+  // 让底边跟随轮廓，不是直线下压
+  const footPoints = [];
   for (let i = ridge.length - 1; i >= 0; i--) {
     const p = ridge[i];
-    const t = i / Math.max(1, ridge.length - 1);
+    const t = i / (ridge.length - 1);
     const n = Noise.noise(t * 5.0, seed * 0.031 + 12.7);
-    const baseDrop = mapVal(depth, 0, 1, 132, 96);
-
-    const x = p.x + (n - 0.5) * 3;
-    const y = p.y + baseDrop + (n - 0.5) * 4 + Math.sin(t * Math.PI) * 2.5;
-
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      footPoints.push({ x, y });
-    }
+    const baseDrop = mapVal(depth, 0, 1, 128, 88);
+    footPoints.push({
+      x: p.x + (n - 0.5) * 6,
+      y: p.y + baseDrop + (n - 0.5) * 3 + Math.sin(t * Math.PI) * 2
+    });
   }
 
-  footPoints = dedupeClosePoints(footPoints, 1.2);
-  if (footPoints.length < 2) return null;
-
   const poly = ridge.concat(footPoints);
-  if (poly.length < 6) return null;
-
-  const minX = Math.min(...poly.map(p => p.x));
-  const maxX = Math.max(...poly.map(p => p.x));
-  const minY = Math.min(...poly.map(p => p.y));
-  const maxY = Math.max(...poly.map(p => p.y));
-
-  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) return null;
-  if (maxX - minX < 8) return null;
-  if (maxY - minY < 8) return null;
 
   return {
     ridge,
@@ -535,69 +488,66 @@ function makeMountainFromStroke(stroke, index, total) {
 }
 
 /* ---------------------------------
-   直接路径填充版山体
+   1) 山体填充颜色与透明度控制
+   下面两个函数是主要控制区域
 ---------------------------------- */
-function drawMountainBody(m) {
-  if (!m || !m.ridge || !m.footPoints || !m.poly) return;
 
+// 这个函数控制“山体主体填色”
+// 重点：
+// - 颜色渐层
+// - 顶部更深
+// - 底部逐渐透明
+function drawMountainBody(m) {
   const topY = Math.min(...m.ridge.map(p => p.y));
   const bottomY = Math.max(...m.footPoints.map(p => p.y));
 
-  if (!Number.isFinite(topY) || !Number.isFinite(bottomY)) return;
-  if (bottomY <= topY + 5) return;
-
   octx.save();
+  polygonPath(octx, m.poly);
+  octx.clip();
 
-  if (polygonPath(octx, m.poly)) {
-    const g = octx.createLinearGradient(0, topY, 0, bottomY);
+  // ---- 主体颜色渐层：这里控制山体大色 ----
+  // 你可以改这里的 rgba 数值，控制蓝、绿、赭的比例
+  const g = octx.createLinearGradient(0, topY, 0, bottomY+33);//bottomY->bottomY+33
 
-    g.addColorStop(0.00, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.06})`);
-    g.addColorStop(0.22, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);
-    g.addColorStop(0.46, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
-    g.addColorStop(0.80, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
-    g.addColorStop(1.00, `rgba(110,108,80,0.05)`);
+  // 顶部更深的蓝绿
+  g.addColorStop(0.11, `rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09})`);//0->0.11,0.05->0.09
+  g.addColorStop(0.30, `rgba(58,102,142,${0.22 + (1 - m.depth) * 0.05})`);//0.18->0.30
 
-    octx.fillStyle = g;
-    octx.fill();
-  }
+  // 中部青绿色
+  g.addColorStop(0.42, `rgba(72,128,122,${0.18 + (1 - m.depth) * 0.04})`);
 
+  // 下部偏石绿/赭绿
+  g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);//0.68->0.80
+
+  // 最底部变得更透明
+  g.addColorStop(1.00, `rgba(110,108,80,0.03)`);//0.015->0.03
+
+  octx.fillStyle = g;
+  octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
+
+  // ---- 顶部随机加深的蓝 / 绿罩染 ----
+  // 这里专门控制“山顶颜色更重”
   const topColor = randChoice([
-    ['34,74,128', rand(0.10, 0.18)],
-    ['52,102,96', rand(0.08, 0.16)],
-    ['76,120,88', rand(0.07, 0.14)]
+    ['34,74,128', rand(0.38, 0.76)],  // 蓝
+    ['52,102,96', rand(0.07, 0.14)],  // 青绿
+    ['76,120,88', rand(0.06, 0.12)]   // 绿
   ]);
 
-  const washTop = m.ridge.map(p => ({ x: p.x, y: p.y }));
-  const washBottom = [];
-  for (let i = m.ridge.length - 1; i >= 0; i--) {
-    const p = m.ridge[i];
-    const t = i / Math.max(1, m.ridge.length - 1);
-    const n = Noise.noise(t * 4.4, m.seed * 0.045 + 22);
-    washBottom.push({
-      x: p.x + (n - 0.5) * 3,
-      y: p.y + 70 + (n - 0.5) * 14
-    });
-  }
-  const washPoly = washTop.concat(washBottom);
+  const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
+  topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
+  topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);//0.22->0.33
+  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
+  topWash.addColorStop(1.00, `rgba(${topColor[0]},0.1)`);
 
-  octx.save();
-  if (polygonPath(octx, washPoly)) {
-    const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
-    topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
-    topWash.addColorStop(0.33, `rgba(${topColor[0]},${topColor[1] * 0.55})`);
-    topWash.addColorStop(0.48, `rgba(${topColor[0]},0.015)`);
-    topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
-    octx.fillStyle = topWash;
-    octx.fill();
-  }
-  octx.restore();
+  octx.fillStyle = topWash;
+  octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
 
   octx.restore();
 }
 
+// 这个函数控制“山体表面额外青绿渐层块”
+// 如果想调石青 / 石绿的随机变化，主要看这里
 function drawBlueGreenLayers(m) {
-  if (!m || !m.ridge) return;
-
   const layerDefs = [
     { off: 0, alpha: 0.18, hue: '48,90,124' },
     { off: 16, alpha: 0.15, hue: '72,122,118' },
@@ -605,50 +555,56 @@ function drawBlueGreenLayers(m) {
   ];
 
   for (const layerDef of layerDefs) {
-    const layerTop = [];
+    const layer = [];
     for (let i = 0; i < m.ridge.length; i++) {
       const p = m.ridge[i];
       const t = i / (m.ridge.length - 1);
       const n = Noise.noise(t * 4.0, m.seed * 0.013 + layerDef.off);
       const jag = Noise.noise(t * 9.0, m.seed * 0.021 + layerDef.off);
-      layerTop.push({
+      layer.push({
         x: p.x + (jag - 0.5) * 3,
         y: p.y + layerDef.off + (n - 0.5) * 12
       });
     }
 
-    const layerBottom = [];
-    for (let i = layerTop.length - 1; i >= 0; i--) {
-      const p = layerTop[i];
-      const t = i / Math.max(1, layerTop.length - 1);
+    const foot = [];
+    for (let i = layer.length - 1; i >= 0; i--) {
+      const p = layer[i];
+      const t = i / (layer.length - 1);
       const n = Noise.noise(t * 4.2, m.seed * 0.025 + 30 + layerDef.off);
-      layerBottom.push({
+      foot.push({
         x: p.x + (n - 0.5) * 4,
-        y: p.y + 82 + (n - 0.5) * 12
+        y: p.y + 95 + (n - 0.5) * 20
       });
     }
 
-    const poly = layerTop.concat(layerBottom);
-    const localTop = Math.min(...layerTop.map(p => p.y));
-    const localBottom = Math.max(...layerBottom.map(p => p.y));
+    const poly = layer.concat(foot);
 
     octx.save();
-    if (polygonPath(octx, poly)) {
-      const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
-      gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
-      gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
-      gg.addColorStop(1.00, `rgba(${layerDef.hue},0.02)`);
-      octx.fillStyle = gg;
-      octx.fill();
-    }
+    polygonPath(octx, poly);
+    octx.clip();
+
+    // 这里控制附加青绿块的透明渐层
+    const localTop = Math.min(...layer.map(p => p.y));
+    const localBottom = Math.max(...foot.map(p => p.y));
+    const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
+    gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
+    gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
+    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.01)`);
+
+    octx.fillStyle = gg;
+    octx.fillRect(0, localTop, oCanvas.width, localBottom - localTop);
+
     octx.restore();
   }
 
+  // 随机青绿斑块
   for (let i = 0; i < m.ridge.length; i += 4) {
     const p = m.ridge[i];
     const cy = p.y + rand(14, 44);
     const r = rand(8, 22);
 
+    // 这里控制随机色：蓝 / 青 / 绿
     const palette = randChoice([
       ['60,96,126', rand(0.04, 0.09)],
       ['78,124,116', rand(0.04, 0.08)],
@@ -668,10 +624,11 @@ function drawBlueGreenLayers(m) {
 
 /* ---------------------------------
    Brush-like ridge outline
+   起笔/收笔有粗细变化
 ---------------------------------- */
 function drawBrushRidgeStroke(m) {
   const pts = m.ridge;
-  if (!pts || pts.length < 2) return;
+  if (pts.length < 2) return;
 
   octx.save();
   octx.lineCap = 'round';
@@ -682,6 +639,7 @@ function drawBrushRidgeStroke(m) {
     const p1 = pts[i];
     const t = i / (pts.length - 1);
 
+    // 起笔细，中段厚，收笔细
     const taper = Math.sin(t * Math.PI);
     const w = 0.55 + taper * (1.2 + (1 - m.depth) * 0.5);
 
@@ -692,6 +650,7 @@ function drawBrushRidgeStroke(m) {
     octx.lineWidth = w;
     octx.stroke();
 
+    // 轻微侧锋墨痕
     if (rnd() < 0.72) {
       octx.beginPath();
       octx.moveTo(p0.x + rand(-1.5, 1.5), p0.y + rand(-1.5, 1.5));
@@ -702,6 +661,7 @@ function drawBrushRidgeStroke(m) {
     }
   }
 
+  // 飞白
   for (let i = 1; i < pts.length; i += 3) {
     if (rnd() < 0.45) {
       const p0 = pts[i - 1];
@@ -730,6 +690,7 @@ function drawContourLines(m) {
       const n = Noise.noise(t * 4.2, k * 0.45 + m.seed * 0.011);
       const n2 = Noise.noise(t * 10.0, k * 0.12 + m.seed * 0.017);
       const bend = Math.sin(t * Math.PI) * 14;
+
       const footY = m.footPoints[m.footPoints.length - 1 - i].y;
 
       line.push({
@@ -1089,20 +1050,8 @@ function drawForegroundDetails() {
 /* ---------------------------------
    Main render
 ---------------------------------- */
-function renderLandscape(versionToken) {
-  if (versionToken !== renderVersion) return;
-
-  octx.setTransform(1, 0, 0, 1, 0, 0);
-  octx.globalAlpha = 1;
-  octx.globalCompositeOperation = 'source-over';
-  octx.shadowColor = 'transparent';
-  octx.shadowBlur = 0;
-  octx.shadowOffsetX = 0;
-  octx.shadowOffsetY = 0;
-  octx.filter = 'none';
-
+function renderLandscape() {
   resetOutputScene();
-  if (versionToken !== renderVersion) return;
 
   const brushStrokes = strokes
     .filter(s => s.tool === 'brush' && s.points.length > 1)
@@ -1116,26 +1065,29 @@ function renderLandscape(versionToken) {
     return;
   }
 
-  const ordered = brushStrokes
-    .map((s, i) => ({
-      stroke: s,
-      idx: i,
-      y: avgY(s.points)
-    }))
-    .sort((a, b) => a.y - b.y);
+  // 重要：
+  // 这里不再“按远近排序”
+  // 直接按照用户绘制顺序渲染
+  // 因为 canvas 后画的会盖住前画的，所以为了“先画的在上层”，
+  // 我们要反过来画：最后画的先渲染，最早画的最后渲染
+  const ordered = brushStrokes.map((s, i) => ({
+    stroke: s,
+    idx: i
+  }));
 
-  const mountains = ordered
-    .map((item, i) => makeMountainFromStroke(item.stroke, i, ordered.length))
-    .filter(Boolean);
+  const mountains = ordered.map((item, i) =>
+    makeMountainFromStroke(item.stroke, i, ordered.length)
+  );
 
-  if (versionToken !== renderVersion) return;
+  // 先画后面的，最后画最早画的
+  const renderOrder = mountains.slice().reverse();
 
-  for (const m of mountains) {
+  for (const m of renderOrder) {
     drawMountainBody(m);
     drawBlueGreenLayers(m);
   }
 
-  for (const m of mountains) {
+  for (const m of renderOrder) {
     drawContourLines(m);
     drawRuggedTexture(m);
     drawMossDots(m);
@@ -1145,7 +1097,7 @@ function renderLandscape(versionToken) {
     //drawSmallHouse(m);
   }
 
-  drawWaterAndReflections(mountains);
+  drawWaterAndReflections(renderOrder);
   drawForegroundDetails();
 
   setStatus('青绿山水正在随笔生长');
