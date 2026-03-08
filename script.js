@@ -3,7 +3,6 @@ const oCanvas = document.getElementById('outputCanvas');
 const ictx = iCanvas.getContext('2d');
 const octx = oCanvas.getContext('2d');
 
-
 const statusTag = document.getElementById('status');
 const brushBtn = document.getElementById('brushBtn');
 const eraserBtn = document.getElementById('eraserBtn');
@@ -519,11 +518,9 @@ function drawMountainBody(m) {
 
   // 下部偏石绿/赭绿
   g.addColorStop(0.68, `rgba(104,146,86,${0.12 + (1 - m.depth) * 0.03})`);
-  
-   // 最底部变得加深
-  g.addColorStop(0.87, ${0.22 + (1 - m.depth) * 0.05})`);
+
   // 最底部变得更透明
-  g.addColorStop(1, `rgba(110,108,80,0.15)`);
+  g.addColorStop(1.00, `rgba(110,108,80,0.015)`);
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY - topY);
@@ -539,7 +536,7 @@ function drawMountainBody(m) {
   const topWash = octx.createLinearGradient(0, topY, 0, bottomY);
   topWash.addColorStop(0.00, `rgba(${topColor[0]},${topColor[1]})`);
   topWash.addColorStop(0.22, `rgba(${topColor[0]},${topColor[1] * 0.55})`);
-  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.3)`);
+  topWash.addColorStop(0.55, `rgba(${topColor[0]},0.02)`);
   topWash.addColorStop(1.00, `rgba(${topColor[0]},0)`);
 
   octx.fillStyle = topWash;
@@ -554,7 +551,7 @@ function drawBlueGreenLayers(m) {
   const layerDefs = [
     { off: 0, alpha: 0.18, hue: '48,90,124' },
     { off: 16, alpha: 0.15, hue: '72,122,118' },
-    { off: 70, alpha: 0.12, hue: '112,146,84' }
+    { off: 30, alpha: 0.12, hue: '112,146,84' }
   ];
 
   for (const layerDef of layerDefs) {
@@ -593,7 +590,7 @@ function drawBlueGreenLayers(m) {
     const gg = octx.createLinearGradient(0, localTop, 0, localBottom);
     gg.addColorStop(0.00, `rgba(${layerDef.hue},${layerDef.alpha})`);
     gg.addColorStop(0.55, `rgba(${layerDef.hue},${layerDef.alpha * 0.6})`);
-    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.1)`);
+    gg.addColorStop(1.00, `rgba(${layerDef.hue},0.01)`);
 
     octx.fillStyle = gg;
     octx.fillRect(0, localTop, oCanvas.width, localBottom - localTop);
