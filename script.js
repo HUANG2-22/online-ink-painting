@@ -302,8 +302,8 @@ function resetOutputScene() {
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
   //drawPaperTexture();
-  drawAtmosphericMounts();
-  drawGroundMist();
+  //drawAtmosphericMounts();
+  //drawGroundMist();
 }
 //2600->3600
 function drawPaperTexture() {
