@@ -289,16 +289,16 @@ function setupCanvas() {
 function resetOutputScene() {
   octx.clearRect(0, 0, oCanvas.width, oCanvas.height);
 
-  const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
+  //const bg = octx.createLinearGradient(0, 0, 0, oCanvas.height);
   //bg.addColorStop(0, '#b18b54');
   //bg.addColorStop(0.42, '#c89f66');
   //bg.addColorStop(1, '#d6ae76');
 
-   bg.addColorStop(0, '#d6b98c');
+   //bg.addColorStop(0, '#d6b98c');
    //bg.addColorStop(0.42, '#e6cfab');
    //bg.addColorStop(1, '#f2e2c7');
-   
-  octx.fillStyle = bg;
+  octx.fillStyle = '#ffffff';
+  //octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
 
   drawPaperTexture();
