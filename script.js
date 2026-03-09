@@ -295,8 +295,8 @@ function resetOutputScene() {
   //bg.addColorStop(1, '#d6ae76');
 
    bg.addColorStop(0, '#d6b98c');
-   bg.addColorStop(0.42, '#e6cfab');
-   bg.addColorStop(1, '#f2e2c7');
+   //bg.addColorStop(0.42, '#e6cfab');
+   //bg.addColorStop(1, '#f2e2c7');
    
   octx.fillStyle = bg;
   octx.fillRect(0, 0, oCanvas.width, oCanvas.height);
@@ -526,6 +526,8 @@ function drawMountainBody(m) {
 
   // 最底部变得更透明
   g.addColorStop(1.00, `rgba(110,108,80,0.3)`);//0.015->0.3
+
+  g.addColorStop(-1.2, ``rgba(42,78,122,${0.26 + (1 - m.depth) * 0.09});//0.015->0.3
 
   octx.fillStyle = g;
   octx.fillRect(0, topY, oCanvas.width, bottomY-33 - topY);
